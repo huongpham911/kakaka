@@ -88,6 +88,8 @@ export default function App() {
   const [copiedClips, setCopiedClips] = useState<VideoClip[]>([]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
+  const previewContainerRef = React.useRef<HTMLDivElement>(null);
   const [isDraggingSeekbar, setIsDraggingSeekbar] = useState<boolean>(false);
   const [seekbarHoverTime, setSeekbarHoverTime] = useState<number | null>(null);
   const [volume, setVolume] = useState<number>(1); // 0-1
@@ -810,6 +812,26 @@ export default function App() {
     showToast('info', `Playback speed: ${newSpeed}x`);
   }, [showToast]);
 
+  // Toggle fullscreen mode
+  const toggleFullscreen = useCallback(async () => {
+    if (!previewContainerRef.current) return;
+
+    try {
+      if (!document.fullscreenElement) {
+        await previewContainerRef.current.requestFullscreen();
+        setIsFullscreen(true);
+        showToast('info', 'Entered fullscreen mode (Press Esc to exit)');
+      } else {
+        await document.exitFullscreen();
+        setIsFullscreen(false);
+        showToast('info', 'Exited fullscreen mode');
+      }
+    } catch (e) {
+      console.error('Fullscreen error:', e);
+      showToast('error', 'Fullscreen not supported');
+    }
+  }, [showToast]);
+
   // Listen to export progress
   useEffect(() => {
     if (!window.electronAPI?.onExportProgress) return;
@@ -819,6 +841,16 @@ export default function App() {
     });
 
     return cleanup;
+  }, []);
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
 
   // Playhead dragging
@@ -1399,7 +1431,7 @@ export default function App() {
 
       {/* PREVIEW SECTION - Center */}
       <div className="preview-section">
-        <div className="preview-container">
+        <div className="preview-container" ref={previewContainerRef}>
           <div className="preview-video">
             {t.video.length > 0 && t.video[0].src ? (
               <>
@@ -1502,6 +1534,15 @@ export default function App() {
                       <option value="2">2x</option>
                     </select>
                   </div>
+
+                  <button
+                    className="btn-video-control"
+                    onClick={toggleFullscreen}
+                    title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                    style={{marginLeft: '12px'}}
+                  >
+                    {isFullscreen ? '⛶' : '⛶'}
+                  </button>
                 </div>
               </>
             ) : (
