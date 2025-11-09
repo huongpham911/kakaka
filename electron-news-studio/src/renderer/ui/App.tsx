@@ -87,7 +87,13 @@ export default function App() {
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
+  const [isDraggingSeekbar, setIsDraggingSeekbar] = useState<boolean>(false);
+  const [seekbarHoverTime, setSeekbarHoverTime] = useState<number | null>(null);
+  const [volume, setVolume] = useState<number>(1); // 0-1
+  const [isMuted, setIsMuted] = useState<boolean>(false);
+  const [volumeBeforeMute, setVolumeBeforeMute] = useState<number>(1);
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const seekbarRef = React.useRef<HTMLDivElement>(null);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('landscape');
   const [resolutionPreset, setResolutionPreset] = useState<ResolutionPreset>('1080p');
   const [exportProgress, setExportProgress] = useState<{ percent: number; timemark: string } | null>(null);
@@ -468,6 +474,15 @@ export default function App() {
     if (savedTheme) {
       setTheme(savedTheme);
     }
+
+    // Load volume from localStorage
+    const savedVolume = localStorage.getItem('volume');
+    if (savedVolume) {
+      const vol = parseFloat(savedVolume);
+      if (!isNaN(vol) && vol >= 0 && vol <= 1) {
+        setVolume(vol);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -526,6 +541,69 @@ export default function App() {
     setCurrentTime(time);
   }, []);
 
+  // Seekbar handlers
+  const handleSeekbarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || !seekbarRef.current) return;
+
+    const rect = seekbarRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = x / rect.width;
+    const time = percent * videoRef.current.duration;
+
+    seekVideo(time);
+  }, [seekVideo]);
+
+  const handleSeekbarMouseDown = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    setIsDraggingSeekbar(true);
+    handleSeekbarClick(e);
+  }, [handleSeekbarClick]);
+
+  const handleSeekbarMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || !seekbarRef.current) return;
+
+    const rect = seekbarRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = Math.max(0, Math.min(1, x / rect.width));
+    const time = percent * videoRef.current.duration;
+
+    setSeekbarHoverTime(time);
+  }, []);
+
+  const handleSeekbarMouseLeave = useCallback(() => {
+    setSeekbarHoverTime(null);
+  }, []);
+
+  // Volume controls
+  const toggleMute = useCallback(() => {
+    if (isMuted) {
+      setIsMuted(false);
+      setVolume(volumeBeforeMute);
+    } else {
+      setVolumeBeforeMute(volume);
+      setIsMuted(true);
+      setVolume(0);
+    }
+  }, [isMuted, volume, volumeBeforeMute]);
+
+  const handleVolumeChange = useCallback((newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    setVolume(clampedVolume);
+    if (clampedVolume > 0) {
+      setIsMuted(false);
+    } else {
+      setIsMuted(true);
+    }
+  }, []);
+
+  // Apply volume to video element
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.volume = volume;
+    }
+    // Save volume to localStorage
+    localStorage.setItem('volume', volume.toString());
+  }, [volume]);
+
   // Listen to export progress
   useEffect(() => {
     if (!window.electronAPI?.onExportProgress) return;
@@ -565,6 +643,34 @@ export default function App() {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDraggingPlayhead]);
+
+  // Seekbar dragging
+  useEffect(() => {
+    if (!isDraggingSeekbar) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!videoRef.current || !seekbarRef.current) return;
+
+      const rect = seekbarRef.current.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percent = Math.max(0, Math.min(1, x / rect.width));
+      const time = percent * videoRef.current.duration;
+
+      seekVideo(time);
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingSeekbar(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingSeekbar, seekVideo]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -887,6 +993,47 @@ export default function App() {
                     borderRadius: '12px'
                   }}
                 />
+
+                {/* Video Progress Bar */}
+                <div
+                  ref={seekbarRef}
+                  className="video-seekbar"
+                  onMouseDown={handleSeekbarMouseDown}
+                  onMouseMove={handleSeekbarMouseMove}
+                  onMouseLeave={handleSeekbarMouseLeave}
+                  style={{ cursor: isDraggingSeekbar ? 'grabbing' : 'pointer' }}
+                >
+                  <div
+                    className="video-seekbar-progress"
+                    style={{
+                      width: `${videoRef.current && videoRef.current.duration > 0
+                        ? (currentTime / videoRef.current.duration) * 100
+                        : 0}%`
+                    }}
+                  />
+                  <div
+                    className="video-seekbar-handle"
+                    style={{
+                      left: `${videoRef.current && videoRef.current.duration > 0
+                        ? (currentTime / videoRef.current.duration) * 100
+                        : 0}%`
+                    }}
+                  />
+                  {seekbarHoverTime !== null && (
+                    <div
+                      className="video-seekbar-tooltip"
+                      style={{
+                        left: `${videoRef.current && videoRef.current.duration > 0
+                          ? (seekbarHoverTime / videoRef.current.duration) * 100
+                          : 0}%`
+                      }}
+                    >
+                      {formatTime(seekbarHoverTime)}
+                    </div>
+                  )}
+                </div>
+
+                {/* Video Controls */}
                 <div className="video-controls">
                   <button className="btn-video-control" onClick={togglePlayPause} title={isPlaying ? 'Pause' : 'Play'}>
                     {isPlaying ? '⏸️' : '▶️'}
@@ -897,6 +1044,23 @@ export default function App() {
                   <button className="btn-video-control" onClick={() => seekVideo(0)} title="Restart">
                     ⏮️
                   </button>
+
+                  <div className="volume-control">
+                    <button className="btn-video-control" onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'}>
+                      {volume === 0 || isMuted ? '🔇' : volume < 0.5 ? '🔉' : '🔊'}
+                    </button>
+                    <input
+                      type="range"
+                      min="0"
+                      max="1"
+                      step="0.01"
+                      value={volume}
+                      onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
+                      className="volume-slider"
+                      title={`Volume: ${Math.round(volume * 100)}%`}
+                    />
+                    <span className="volume-percent">{Math.round(volume * 100)}%</span>
+                  </div>
                 </div>
               </>
             ) : (
