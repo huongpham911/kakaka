@@ -84,7 +84,7 @@ export default function App() {
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'media' | 'settings'>('media');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
-  const [selectedClip, setSelectedClip] = useState<string | null>(null);
+  const [selectedClips, setSelectedClips] = useState<string[]>([]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isDraggingSeekbar, setIsDraggingSeekbar] = useState<boolean>(false);
@@ -148,6 +148,21 @@ export default function App() {
   };
 
   // Video clip management
+  // Toggle clip selection (for multi-select)
+  const toggleClipSelection = useCallback((clipId: string, isCtrlOrCmd: boolean) => {
+    if (isCtrlOrCmd) {
+      // Multi-select mode
+      setSelectedClips(prev =>
+        prev.includes(clipId)
+          ? prev.filter(id => id !== clipId)
+          : [...prev, clipId]
+      );
+    } else {
+      // Single select mode
+      setSelectedClips([clipId]);
+    }
+  }, []);
+
   const addVideoClip = useCallback((filePath: string) => {
     // Validate file format
     const formatValidation = validateVideoFormat(filePath);
@@ -170,7 +185,7 @@ export default function App() {
         duration: 5,
         transition: { type: 'fade', duration: 1 }
       };
-      setSelectedClip(newClip.id);
+      setSelectedClips([newClip.id]);
       showToast('success', 'Video clip added successfully');
       return { ...s, tracks: { ...s.tracks, video: [...s.tracks.video, newClip] }};
     });
@@ -178,9 +193,22 @@ export default function App() {
 
   const removeVideoClip = useCallback((id: string) => {
     setP(s => ({ ...s, tracks: { ...s.tracks, video: s.tracks.video.filter(c => c.id !== id) }}));
-    setSelectedClip(prev => prev === id ? null : prev);
+    setSelectedClips(prev => prev.filter(clipId => clipId !== id));
     showToast('info', 'Video clip removed');
   }, [showToast]);
+
+  const removeSelectedClips = useCallback(() => {
+    if (selectedClips.length === 0) return;
+    setP(s => ({
+      ...s,
+      tracks: {
+        ...s.tracks,
+        video: s.tracks.video.filter(c => !selectedClips.includes(c.id))
+      }
+    }));
+    showToast('info', `${selectedClips.length} clip${selectedClips.length > 1 ? 's' : ''} removed`);
+    setSelectedClips([]);
+  }, [selectedClips, showToast]);
 
   const updateVideoClip = useCallback((id: string, updates: Partial<VideoClip>) => {
     setP(s => ({
@@ -822,11 +850,11 @@ export default function App() {
         }
       }
 
-      // Delete selected clip
+      // Delete selected clip(s)
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (selectedClip) {
+        if (selectedClips.length > 0) {
           e.preventDefault();
-          removeVideoClip(selectedClip);
+          removeSelectedClips();
         }
       }
 
@@ -843,10 +871,10 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClip, disabled, isExporting, activeTab, undo, redo, canUndo, canRedo, saveProject, loadProject, onExport, removeVideoClip, showToast]);
+  }, [selectedClips, disabled, isExporting, activeTab, undo, redo, canUndo, canRedo, saveProject, loadProject, onExport, removeSelectedClips, showToast]);
 
-  // Get selected clip for editing
-  const currentClip = selectedClip ? t.video.find(c => c.id === selectedClip) : null;
+  // Get selected clip for editing (first selected clip)
+  const currentClip = selectedClips.length > 0 ? t.video.find(c => c.id === selectedClips[0]) : null;
 
   return (
     <>
@@ -868,7 +896,14 @@ export default function App() {
             {/* Selected Clip Editor */}
             {currentClip && (
               <div className="section">
-                <h3 className="section-title">✂️ Clip #{t.video.findIndex(c => c.id === selectedClip) + 1}</h3>
+                <h3 className="section-title">
+                  ✂️ Clip #{t.video.findIndex(c => c.id === selectedClips[0]) + 1}
+                  {selectedClips.length > 1 && (
+                    <span style={{fontSize: '11px', opacity: 0.7, marginLeft: '8px'}}>
+                      (+{selectedClips.length - 1} more selected)
+                    </span>
+                  )}
+                </h3>
                 <label>Duration (s)</label>
                 <input type="number" min="0.1" step="0.1" value={currentClip.duration || 5}
                   onChange={e => updateVideoClip(currentClip.id, { duration: Number(e.target.value) })} />
@@ -1482,6 +1517,34 @@ export default function App() {
         <div className="timeline-header">
           <span className="timeline-title">⏱️ Timeline Layers</span>
           <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
+            {selectedClips.length > 0 && (
+              <div style={{
+                display: 'flex',
+                gap: '8px',
+                alignItems: 'center',
+                padding: '4px 8px',
+                background: 'var(--accent-primary)',
+                borderRadius: '4px',
+                fontSize: '11px',
+                fontWeight: '600'
+              }}>
+                <span>{selectedClips.length} selected</span>
+                <button
+                  onClick={() => setSelectedClips([])}
+                  style={{
+                    padding: '2px 6px',
+                    fontSize: '10px',
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    border: 'none',
+                    borderRadius: '3px',
+                    cursor: 'pointer',
+                    color: 'white'
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            )}
             <span style={{fontSize: '12px', opacity: 0.7}}>
               Total: {(t.intro?.duration || 0) + t.video.reduce((acc, c) => acc + (c.duration || 5), 0) + (t.outro?.duration || 0)}s
             </span>
@@ -1643,7 +1706,7 @@ export default function App() {
 
               {/* Intro */}
               {t.intro?.src && (
-                <div className="track-item" onClick={() => setSelectedClip(null)}>
+                <div className="track-item" onClick={() => setSelectedClips([])}>
                   <div className="track-item-name">🎬 Intro</div>
                   <div className="track-item-info">{t.intro.duration || 3}s</div>
                 </div>
@@ -1661,10 +1724,14 @@ export default function App() {
                     onDragOver={(e) => handleClipDragOver(e, clip.id)}
                     onDragEnd={handleClipDragEnd}
                     onDrop={(e) => handleClipDrop(e, clip.id)}
-                    onClick={() => setSelectedClip(clip.id)}
-                    title={`${filename}\nDrag to reorder`}
+                    onClick={(e) => {
+                      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+                      const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+                      toggleClipSelection(clip.id, isCtrlOrCmd);
+                    }}
+                    title={`${filename}\nClick to select, Ctrl/Cmd+Click for multi-select\nDrag to reorder`}
                     style={{
-                      ...(selectedClip === clip.id ? {borderColor: '#3b82f6', background: '#212e42'} : {}),
+                      ...(selectedClips.includes(clip.id) ? {borderColor: '#3b82f6', background: '#212e42'} : {}),
                       ...(draggedClipId === clip.id ? {opacity: 0.5} : {}),
                       ...(dragOverClipId === clip.id && draggedClipId !== clip.id ? {borderColor: '#10b981', borderStyle: 'solid'} : {}),
                       cursor: 'grab',
@@ -1727,7 +1794,7 @@ export default function App() {
 
               {/* Outro */}
               {t.outro?.src && (
-                <div className="track-item" onClick={() => setSelectedClip(null)}>
+                <div className="track-item" onClick={() => setSelectedClips([])}>
                   <div className="track-item-name">🎬 Outro</div>
                   <div className="track-item-info">{t.outro.duration || 3}s</div>
                 </div>
