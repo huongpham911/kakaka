@@ -458,7 +458,7 @@ export default function App() {
       {/* TIMELINE SECTION - Bottom Full Width */}
       <div className="timeline-section">
         <div className="timeline-header">
-          <span className="timeline-title">⏱️ Timeline</span>
+          <span className="timeline-title">⏱️ Timeline Layers</span>
           <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
             <span style={{fontSize: '12px', opacity: 0.7}}>
               Total: {(t.intro?.duration || 0) + t.video.reduce((acc, c) => acc + (c.duration || 5), 0) + (t.outro?.duration || 0)}s
@@ -466,129 +466,168 @@ export default function App() {
           </div>
         </div>
 
-        <div className="timeline-clips">
-          {/* Intro */}
-          {t.intro?.src && (
-            <div className="clip-item intro-clip">
-              <div className="clip-header">
-                <span className="clip-number">🎬 Intro</span>
-                <div className="clip-actions">
-                  <button className="btn-sm btn-danger" onClick={() => { delete t.intro; setP({ ...p }); }}>✕</button>
+        <div className="timeline-tracks">
+          {/* TEXT / TICKER TRACK - Top layer */}
+          <div className="track text-track">
+            <div className="track-label">
+              <div className="track-label-title">
+                <span>📝</span>
+                <span>Text / Ticker</span>
+              </div>
+              <div className="track-label-subtitle">Layer 5</div>
+            </div>
+            <div className="track-content">
+              {t.ticker?.text && t.ticker?.font ? (
+                <div className="track-item">
+                  <div className="track-item-name">🔤 {t.ticker.text.substring(0, 20)}...</div>
+                  <div className="track-item-info">
+                    {t.ticker.position || 'footer'} • {t.ticker.direction || 'rtl'}
+                  </div>
                 </div>
-              </div>
-              <div className="clip-filename" title={t.intro.src}>📹 {t.intro.src.split('/').pop()}</div>
-              <div className="clip-controls" style={{marginTop: '8px'}}>
-                <label>Duration (s)</label>
-                <input type="number" min="0.1" step="0.1" value={t.intro.duration || 3}
-                  onChange={e => { t.intro!.duration = Number(e.target.value); setP({ ...p }); }}
-                  style={{width: '100%'}} />
-              </div>
+              ) : (
+                <div className="track-empty">No ticker configured</div>
+              )}
             </div>
-          )}
-
-          {/* Add Intro Button */}
-          {!t.intro?.src && (
-            <div className={`add-clip-btn ${dragOver === 'intro' ? 'drag-over' : ''}`}
-              onDragOver={(e) => handleDragOver(e, 'intro')}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, 'intro')}
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'video/*';
-                input.onchange = (e: any) => {
-                  const f = e.target?.files?.[0];
-                  if (f) { t.intro = { src: (f as any).path ?? "", duration: 3 }; setP({ ...p }); }
-                };
-                input.click();
-              }}>
-              <span style={{fontSize: '24px'}}>+</span>
-              <span style={{fontSize: '12px'}}>Intro</span>
-            </div>
-          )}
-
-          {/* Main Clips */}
-          {t.video.map((clip, idx) => (
-            <div key={clip.id}
-              className={`clip-item ${selectedClip === clip.id ? 'selected' : ''}`}
-              onClick={() => setSelectedClip(clip.id)}
-              style={selectedClip === clip.id ? {borderColor: '#2463eb', boxShadow: '0 0 0 2px rgba(36,99,235,0.3)'} : {}}>
-              <div className="clip-header">
-                <span className="clip-number">#{idx + 1}</span>
-                <div className="clip-actions">
-                  <button className="btn-sm" onClick={(e) => { e.stopPropagation(); moveClip(clip.id, 'up'); }} disabled={idx === 0}>←</button>
-                  <button className="btn-sm" onClick={(e) => { e.stopPropagation(); moveClip(clip.id, 'down'); }} disabled={idx === t.video.length - 1}>→</button>
-                  <button className="btn-sm btn-danger" onClick={(e) => { e.stopPropagation(); removeVideoClip(clip.id); }}>✕</button>
-                </div>
-              </div>
-              <div className="clip-filename" title={clip.src}>📹 {clip.src.split('/').pop()}</div>
-              <div className="clip-controls" style={{marginTop: '8px'}}>
-                <label style={{fontSize: '11px', opacity: 0.8}}>
-                  {clip.duration || 5}s • {clip.transition?.type || 'fade'} ({clip.transition?.duration || 1}s)
-                </label>
-              </div>
-            </div>
-          ))}
-
-          {/* Add Clip Button */}
-          <div className={`add-clip-btn ${dragOver === 'video' ? 'drag-over' : ''}`}
-            onDragOver={(e) => handleDragOver(e, 'video')}
-            onDragLeave={handleDragLeave}
-            onDrop={(e) => handleDrop(e, 'video')}
-            onClick={() => {
-              const input = document.createElement('input');
-              input.type = 'file';
-              input.accept = 'video/*';
-              input.multiple = true;
-              input.onchange = (e: any) => {
-                const files = e.target?.files;
-                if (files) Array.from(files).forEach((f: any) => addVideoClip((f as any).path ?? ""));
-              };
-              input.click();
-            }}>
-            <span style={{fontSize: '24px'}}>+</span>
-            <span style={{fontSize: '12px'}}>Add Video</span>
           </div>
 
-          {/* Outro */}
-          {t.outro?.src && (
-            <div className="clip-item outro-clip">
-              <div className="clip-header">
-                <span className="clip-number">🎬 Outro</span>
-                <div className="clip-actions">
-                  <button className="btn-sm btn-danger" onClick={() => { delete t.outro; setP({ ...p }); }}>✕</button>
+          {/* FRAME TRACK */}
+          <div className="track frame-track">
+            <div className="track-label">
+              <div className="track-label-title">
+                <span>🖼️</span>
+                <span>Frame</span>
+              </div>
+              <div className="track-label-subtitle">Layer 4</div>
+            </div>
+            <div className="track-content">
+              {t.frame?.enable ? (
+                <div className="track-item">
+                  <div className="track-item-name">⬜ Frame Border</div>
+                  <div className="track-item-info">
+                    {t.frame.thickness}px • {t.frame.color}
+                  </div>
                 </div>
-              </div>
-              <div className="clip-filename" title={t.outro.src}>📹 {t.outro.src.split('/').pop()}</div>
-              <div className="clip-controls" style={{marginTop: '8px'}}>
-                <label>Duration (s)</label>
-                <input type="number" min="0.1" step="0.1" value={t.outro.duration || 3}
-                  onChange={e => { t.outro!.duration = Number(e.target.value); setP({ ...p }); }}
-                  style={{width: '100%'}} />
-              </div>
+              ) : (
+                <div className="track-empty">Frame disabled</div>
+              )}
             </div>
-          )}
+          </div>
 
-          {/* Add Outro Button */}
-          {!t.outro?.src && (
-            <div className={`add-clip-btn ${dragOver === 'outro' ? 'drag-over' : ''}`}
-              onDragOver={(e) => handleDragOver(e, 'outro')}
-              onDragLeave={handleDragLeave}
-              onDrop={(e) => handleDrop(e, 'outro')}
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'video/*';
-                input.onchange = (e: any) => {
-                  const f = e.target?.files?.[0];
-                  if (f) { t.outro = { src: (f as any).path ?? "", duration: 3 }; setP({ ...p }); }
-                };
-                input.click();
-              }}>
-              <span style={{fontSize: '24px'}}>+</span>
-              <span style={{fontSize: '12px'}}>Outro</span>
+          {/* LOGO TRACK */}
+          <div className="track logo-track">
+            <div className="track-label">
+              <div className="track-label-title">
+                <span>🏷️</span>
+                <span>Logo</span>
+              </div>
+              <div className="track-label-subtitle">Layer 3</div>
             </div>
-          )}
+            <div className="track-content">
+              {t.logo?.src ? (
+                <div className="track-item">
+                  <div className="track-item-name">🖼️ {t.logo.src.split('/').pop()}</div>
+                  <div className="track-item-info">
+                    {t.logo.pos} • opacity: {t.logo.opacity}
+                  </div>
+                </div>
+              ) : (
+                <div className="track-empty">No logo</div>
+              )}
+            </div>
+          </div>
+
+          {/* AUDIO TRACK */}
+          <div className="track audio-track">
+            <div className="track-label">
+              <div className="track-label-title">
+                <span>🎵</span>
+                <span>Audio</span>
+              </div>
+              <div className="track-label-subtitle">Layer 2</div>
+            </div>
+            <div className="track-content">
+              {t.audio?.bgm?.src && (
+                <div className="track-item">
+                  <div className="track-item-name">🎵 {t.audio.bgm.src.split('/').pop()}</div>
+                  <div className="track-item-info">BGM • {t.audio.bgm.gain}dB</div>
+                </div>
+              )}
+              {t.audio?.voice?.src && (
+                <div className="track-item">
+                  <div className="track-item-name">🎤 {t.audio.voice.src.split('/').pop()}</div>
+                  <div className="track-item-info">Voice • {t.audio.voice.gain}dB{t.audio.voice.duck_bgm ? ' • Duck' : ''}</div>
+                </div>
+              )}
+              {!t.audio?.bgm?.src && !t.audio?.voice?.src && (
+                <div className="track-empty">No audio</div>
+              )}
+            </div>
+          </div>
+
+          {/* VIDEO TRACK - Bottom layer */}
+          <div className="track video-track">
+            <div className="track-label">
+              <div className="track-label-title">
+                <span>🎬</span>
+                <span>Video</span>
+              </div>
+              <div className="track-label-subtitle">Layer 1</div>
+            </div>
+            <div className="track-content">
+              {/* Intro */}
+              {t.intro?.src && (
+                <div className="track-item" onClick={() => setSelectedClip(null)}>
+                  <div className="track-item-name">🎬 Intro</div>
+                  <div className="track-item-info">{t.intro.duration || 3}s</div>
+                </div>
+              )}
+
+              {/* Main Clips */}
+              {t.video.map((clip, idx) => (
+                <div key={clip.id}
+                  className="track-item"
+                  onClick={() => setSelectedClip(clip.id)}
+                  style={selectedClip === clip.id ? {borderColor: '#3b82f6', background: '#212e42'} : {}}>
+                  <div className="track-item-name">📹 Clip #{idx + 1}</div>
+                  <div className="track-item-info">
+                    {clip.duration || 5}s • {clip.transition?.type || 'fade'}
+                  </div>
+                </div>
+              ))}
+
+              {/* Add Video Button */}
+              <div className={`track-item ${dragOver === 'video' ? 'drag-over' : ''}`}
+                style={{border: '1px dashed #3b4b5d', cursor: 'pointer', background: 'transparent'}}
+                onDragOver={(e) => handleDragOver(e, 'video')}
+                onDragLeave={handleDragLeave}
+                onDrop={(e) => handleDrop(e, 'video')}
+                onClick={() => {
+                  const input = document.createElement('input');
+                  input.type = 'file';
+                  input.accept = 'video/*';
+                  input.multiple = true;
+                  input.onchange = (e: any) => {
+                    const files = e.target?.files;
+                    if (files) Array.from(files).forEach((f: any) => addVideoClip((f as any).path ?? ""));
+                  };
+                  input.click();
+                }}>
+                <div className="track-item-name" style={{opacity: 0.6}}>+ Add Video</div>
+              </div>
+
+              {/* Outro */}
+              {t.outro?.src && (
+                <div className="track-item" onClick={() => setSelectedClip(null)}>
+                  <div className="track-item-name">🎬 Outro</div>
+                  <div className="track-item-info">{t.outro.duration || 3}s</div>
+                </div>
+              )}
+
+              {!t.intro?.src && !t.video.length && !t.outro?.src && (
+                <div className="track-empty">No video clips</div>
+              )}
+            </div>
+          </div>
         </div>
       </div>
     </>

@@ -105,9 +105,124 @@
         border-top: 2px solid #1b2632;
         padding: 16px;
         overflow-x: auto;
+        overflow-y: auto;
+        min-height: 280px;
+        max-height: 350px;
+      }
+
+      /* Timeline tracks - layered */
+      .timeline-tracks {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        margin-top: 12px;
+      }
+
+      .track {
+        display: flex;
+        align-items: stretch;
+        background: #0d1218;
+        border: 1px solid #1b2632;
+        border-radius: 6px;
+        overflow: hidden;
+        min-height: 50px;
+      }
+
+      .track-label {
+        width: 120px;
+        background: #0a0e13;
+        border-right: 1px solid #1b2632;
+        padding: 8px 12px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+
+      .track-label-title {
+        font-size: 11px;
+        font-weight: 600;
+        opacity: 0.9;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .track-label-subtitle {
+        font-size: 10px;
+        opacity: 0.5;
+        margin-top: 2px;
+      }
+
+      .track-content {
+        flex: 1;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        overflow-x: auto;
         overflow-y: hidden;
-        min-height: 200px;
-        max-height: 240px;
+      }
+
+      .track-content::-webkit-scrollbar {
+        height: 6px;
+      }
+      .track-content::-webkit-scrollbar-track {
+        background: #0a0e13;
+      }
+      .track-content::-webkit-scrollbar-thumb {
+        background: #2463eb;
+        border-radius: 3px;
+      }
+
+      /* Track-specific colors */
+      .track.video-track { border-left: 3px solid #3b82f6; }
+      .track.audio-track { border-left: 3px solid #10b981; }
+      .track.logo-track { border-left: 3px solid #f59e0b; }
+      .track.frame-track { border-left: 3px solid #8b5cf6; }
+      .track.text-track { border-left: 3px solid #ec4899; }
+
+      /* Track items */
+      .track-item {
+        background: #1a2332;
+        border: 1px solid #2b3b4d;
+        border-radius: 4px;
+        padding: 6px 10px;
+        min-width: 80px;
+        max-width: 200px;
+        font-size: 11px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        flex-shrink: 0;
+        transition: all 0.2s;
+        cursor: pointer;
+      }
+
+      .track-item:hover {
+        background: #212e42;
+        border-color: #3b4b5d;
+      }
+
+      .track-item-name {
+        font-weight: 600;
+        opacity: 0.9;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .track-item-info {
+        opacity: 0.6;
+        font-size: 10px;
+      }
+
+      .track-empty {
+        opacity: 0.4;
+        font-size: 11px;
+        font-style: italic;
       }
 
       .panel { padding:14px; overflow:auto; border-right:1px solid #1b2632; }
