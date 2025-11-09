@@ -4,9 +4,19 @@ import {
   RESOLUTIONS,
   AUTOSAVE_INTERVAL,
   STORAGE_KEYS,
+  LIMITS,
   type AspectRatio,
   type ResolutionPreset
 } from "../../shared/constants";
+import {
+  validateProject,
+  validateVideoFormat,
+  validateAudioFormat,
+  validateImageFormat,
+  validateFontFormat,
+  validateClipCount,
+  isVideoFile
+} from "../../shared/validation";
 import { ToastContainer, type Toast, type ToastType } from "./Toast";
 import { ConfirmModal } from "./Modal";
 
@@ -111,6 +121,20 @@ export default function App() {
 
   // Video clip management
   const addVideoClip = (filePath: string) => {
+    // Validate file format
+    const formatValidation = validateVideoFormat(filePath);
+    if (!formatValidation.valid) {
+      showToast('error', formatValidation.error || 'Invalid video format');
+      return;
+    }
+
+    // Validate clip count
+    const countValidation = validateClipCount(t.video.length + 1);
+    if (!countValidation.valid) {
+      showToast('warning', countValidation.error || 'Too many clips');
+      return;
+    }
+
     const newClip: VideoClip = {
       id: `clip-${Date.now()}`,
       src: filePath,
@@ -119,11 +143,13 @@ export default function App() {
     };
     setP(s => ({ ...s, tracks: { ...s.tracks, video: [...s.tracks.video, newClip] }}));
     setSelectedClip(newClip.id);
+    showToast('success', 'Video clip added successfully');
   };
 
   const removeVideoClip = (id: string) => {
     setP(s => ({ ...s, tracks: { ...s.tracks, video: s.tracks.video.filter(c => c.id !== id) }}));
     if (selectedClip === id) setSelectedClip(null);
+    showToast('info', 'Video clip removed');
   };
 
   const updateVideoClip = (id: string, updates: Partial<VideoClip>) => {
@@ -167,6 +193,42 @@ export default function App() {
 
     const filePath = (file as any).path ?? file.name;
 
+    // Validate file based on type
+    let validation;
+    switch (type) {
+      case 'video':
+      case 'intro':
+      case 'outro':
+        validation = validateVideoFormat(filePath);
+        if (!validation.valid) {
+          showToast('error', validation.error || 'Invalid video file');
+          return;
+        }
+        break;
+      case 'logo':
+        validation = validateImageFormat(filePath);
+        if (!validation.valid) {
+          showToast('error', validation.error || 'Invalid image file');
+          return;
+        }
+        break;
+      case 'font':
+        validation = validateFontFormat(filePath);
+        if (!validation.valid) {
+          showToast('error', validation.error || 'Invalid font file');
+          return;
+        }
+        break;
+      case 'bgm':
+      case 'voice':
+        validation = validateAudioFormat(filePath);
+        if (!validation.valid) {
+          showToast('error', validation.error || 'Invalid audio file');
+          return;
+        }
+        break;
+    }
+
     switch (type) {
       case 'video':
         addVideoClip(filePath);
@@ -174,26 +236,32 @@ export default function App() {
       case 'intro':
         t.intro = { src: filePath, duration: 3 };
         setP({ ...p });
+        showToast('success', 'Intro video added');
         break;
       case 'outro':
         t.outro = { src: filePath, duration: 3 };
         setP({ ...p });
+        showToast('success', 'Outro video added');
         break;
       case 'logo':
         t.logo!.src = filePath;
         setP({ ...p });
+        showToast('success', 'Logo image added');
         break;
       case 'font':
         t.ticker!.font = filePath;
         setP({ ...p });
+        showToast('success', 'Ticker font added');
         break;
       case 'bgm':
         t.audio!.bgm!.src = filePath;
         setP({ ...p });
+        showToast('success', 'Background music added');
         break;
       case 'voice':
         t.audio!.voice!.src = filePath;
         setP({ ...p });
+        showToast('success', 'Voice-over added');
         break;
     }
   };
@@ -203,6 +271,14 @@ export default function App() {
       showToast('error', 'No electronAPI. Run via Electron.');
       return;
     }
+
+    // Validate project before export
+    const validation = validateProject(p);
+    if (!validation.valid) {
+      showToast('error', validation.error || 'Project validation failed');
+      return;
+    }
+
     try {
       setIsExporting(true);
       setExportProgress({ percent: 0, timemark: "00:00:00" });
