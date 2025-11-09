@@ -1,8 +1,21 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import type { Project, VideoClip, TransitionType } from "../../shared/types";
+import {
+  RESOLUTIONS,
+  AUTOSAVE_INTERVAL,
+  STORAGE_KEYS,
+  type AspectRatio,
+  type ResolutionPreset
+} from "../../shared/constants";
 
 declare global {
-  interface Window { electronAPI?: { export: (p: Project) => Promise<string> } }
+  interface Window {
+    electronAPI?: {
+      export: (p: Project) => Promise<string>;
+      saveProject: (data: string) => Promise<string | null>;
+      loadProject: () => Promise<{ path: string; data: string } | null>;
+    }
+  }
 }
 
 const defaultProj: Project = {
@@ -38,9 +51,6 @@ const defaultProj: Project = {
   }
 };
 
-type AspectRatio = 'landscape' | 'portrait' | 'square';
-type ResolutionPreset = '720p' | '1080p' | '2k' | '4k';
-
 export default function App() {
   const [p, setP] = useState<Project>(defaultProj);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -56,24 +66,14 @@ export default function App() {
   // Handle aspect ratio change
   const handleAspectRatioChange = (ratio: AspectRatio) => {
     setAspectRatio(ratio);
-    const resolutions = {
-      landscape: { '720p': [1280, 720], '1080p': [1920, 1080], '2k': [2560, 1440], '4k': [3840, 2160] },
-      portrait: { '720p': [720, 1280], '1080p': [1080, 1920], '2k': [1440, 2560], '4k': [2160, 3840] },
-      square: { '720p': [720, 720], '1080p': [1080, 1080], '2k': [1440, 1440], '4k': [2160, 2160] }
-    };
-    const [w, h] = resolutions[ratio][resolutionPreset];
+    const [w, h] = RESOLUTIONS[ratio][resolutionPreset];
     setP(old => ({ ...old, width: w, height: h }));
   };
 
   // Handle resolution preset change
   const handleResolutionChange = (preset: ResolutionPreset) => {
     setResolutionPreset(preset);
-    const resolutions = {
-      landscape: { '720p': [1280, 720], '1080p': [1920, 1080], '2k': [2560, 1440], '4k': [3840, 2160] },
-      portrait: { '720p': [720, 1280], '1080p': [1080, 1920], '2k': [1440, 2560], '4k': [2160, 3840] },
-      square: { '720p': [720, 720], '1080p': [1080, 1080], '2k': [1440, 1440], '4k': [2160, 2160] }
-    };
-    const [w, h] = resolutions[aspectRatio][preset];
+    const [w, h] = RESOLUTIONS[aspectRatio][preset];
     setP(old => ({ ...old, width: w, height: h }));
   };
 
@@ -175,6 +175,74 @@ export default function App() {
       console.error(e); alert("Export error: " + e?.message);
     }
   }
+
+  // Save project
+  async function saveProject() {
+    if (!window.electronAPI?.saveProject) {
+      alert("Save not available. Run via Electron.");
+      return;
+    }
+    try {
+      const projectData = JSON.stringify(p, null, 2);
+      const filePath = await window.electronAPI.saveProject(projectData);
+      if (filePath) {
+        localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, filePath);
+        alert("💾 Project saved: " + filePath);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Save error: " + e?.message);
+    }
+  }
+
+  // Load project
+  async function loadProject() {
+    if (!window.electronAPI?.loadProject) {
+      alert("Load not available. Run via Electron.");
+      return;
+    }
+    try {
+      const result = await window.electronAPI.loadProject();
+      if (result) {
+        const loadedProject = JSON.parse(result.data);
+        setP(loadedProject);
+        localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, result.path);
+        alert("📂 Project loaded: " + result.path);
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert("Load error: " + e?.message);
+    }
+  }
+
+  // Auto-save to localStorage
+  useEffect(() => {
+    const timer = setInterval(() => {
+      try {
+        localStorage.setItem(STORAGE_KEYS.AUTOSAVE, JSON.stringify(p));
+        console.log("Auto-saved to localStorage");
+      } catch (e) {
+        console.error("Auto-save error:", e);
+      }
+    }, AUTOSAVE_INTERVAL);
+
+    return () => clearInterval(timer);
+  }, [p]);
+
+  // Load auto-save on mount
+  useEffect(() => {
+    try {
+      const autosaved = localStorage.getItem(STORAGE_KEYS.AUTOSAVE);
+      if (autosaved) {
+        const shouldRestore = confirm("Found auto-saved project. Restore it?");
+        if (shouldRestore) {
+          setP(JSON.parse(autosaved));
+        }
+      }
+    } catch (e) {
+      console.error("Failed to restore auto-save:", e);
+    }
+  }, []);
 
   // Get selected clip for editing
   const currentClip = selectedClip ? t.video.find(c => c.id === selectedClip) : null;
@@ -443,6 +511,16 @@ export default function App() {
             <option value="4k">4K (Ultra HD)</option>
           </select>
         </div>
+
+        <div className="toolbar-divider"></div>
+
+        <button className="btn-save" onClick={saveProject} title="Save project">
+          💾 Save
+        </button>
+
+        <button className="btn-load" onClick={loadProject} title="Load project">
+          📂 Load
+        </button>
 
         <div className="toolbar-divider"></div>
 
