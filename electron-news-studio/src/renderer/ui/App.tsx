@@ -13,7 +13,26 @@ const defaultProj: Project = {
   tracks: {
     video: [],
     logo: { src: "", pos: "top-right", opacity: 0.9, scale: 220, start: 0 },
-    ticker: { text: "TIN NÓNG: Chữ chạy demo | ", font: "", size: 48, color: "white", y: 1000, speed: 250, box: true, direction: 'rtl' },
+    ticker: {
+      text: "TIN NÓNG: Chữ chạy demo | ",
+      font: "",
+      size: 48,
+      color: "white",
+      y: 1000,
+      speed: 250,
+      box: true,
+      boxColor: "black",
+      boxOpacity: 0.55,
+      textOpacity: 1.0,
+      direction: 'rtl',
+      position: 'footer',
+      bold: false,
+      italic: false,
+      shadow: false,
+      shadowColor: "black",
+      shadowX: 2,
+      shadowY: 2
+    },
     frame: { enable: true, thickness: 12, color: "white@0.85" },
     audio: { bgm: { src: "", gain: -6 }, voice: { src: "", gain: 0, duck_bgm: true } }
   }
@@ -239,8 +258,9 @@ export default function App() {
         </div>
 
         <div className="box">
-          <strong>Ticker</strong>
-          <textarea rows={3} value={t.ticker?.text ?? ""} onChange={e => { t.ticker!.text = e.target.value; setP({ ...p }); }} />
+          <strong>Ticker - Chữ Chạy</strong>
+          <textarea rows={3} value={t.ticker?.text ?? ""} onChange={e => { t.ticker!.text = e.target.value; setP({ ...p }); }} placeholder="Nhập nội dung chữ chạy..." />
+
           <label>Font file (TTF/OTF)</label>
           <div
             className={`dropzone ${dragOver === 'font' ? 'drag-over' : ''}`}
@@ -256,23 +276,74 @@ export default function App() {
             {t.ticker?.font && <div className="file-name">🔤 {t.ticker.font.split('/').pop()}</div>}
             <div className="drop-hint">Kéo thả font vào đây</div>
           </div>
-          <div className="row">
-            <div><label>Size</label><input type="number" value={t.ticker?.size ?? 48} onChange={e => { t.ticker!.size = Number(e.target.value||48); setP({ ...p }); }} /></div>
-            <div><label>Y</label><input type="number" value={t.ticker?.y ?? 1000} onChange={e => { t.ticker!.y = Number(e.target.value||1000); setP({ ...p }); }} /></div>
-            <div><label>Speed</label><input type="number" value={t.ticker?.speed ?? 250} onChange={e => { t.ticker!.speed = Number(e.target.value||250); setP({ ...p }); }} /></div>
-          </div>
-          <div className="row">
-            <div><label>Color</label><input value={t.ticker?.color ?? "white"} onChange={e => { t.ticker!.color = e.target.value; setP({ ...p }); }} /></div>
-            <div><label>Box BG</label><select value={t.ticker?.box ? "1":"0"} onChange={e => { t.ticker!.box = e.target.value==="1"; setP({ ...p }); }}><option value="1">On</option><option value="0">Off</option></select></div>
-          </div>
+
+          {/* Vị trí & Hướng */}
           <div className="row">
             <div>
-              <label>Direction</label>
-              <select value={t.ticker?.direction ?? 'rtl'} onChange={e => { t.ticker!.direction = e.target.value as 'rtl' | 'ltr'; setP({ ...p }); }}>
-                <option value="rtl">← Phải sang Trái (RTL)</option>
-                <option value="ltr">→ Trái sang Phải (LTR)</option>
+              <label>Vị trí</label>
+              <select value={t.ticker?.position ?? 'footer'} onChange={e => {
+                const pos = e.target.value as 'header' | 'footer' | 'custom';
+                t.ticker!.position = pos;
+                if (pos === 'header') t.ticker!.y = 50;
+                else if (pos === 'footer') t.ticker!.y = 1000;
+                setP({ ...p });
+              }}>
+                <option value="header">Header (Trên)</option>
+                <option value="footer">Footer (Dưới)</option>
+                <option value="custom">Tùy chỉnh</option>
               </select>
             </div>
+            <div>
+              <label>Y {(t.ticker?.position === 'custom') ? '(Custom)' : ''}</label>
+              <input type="number" value={t.ticker?.y ?? 1000}
+                onChange={e => { t.ticker!.y = Number(e.target.value||1000); setP({ ...p }); }}
+                disabled={t.ticker?.position !== 'custom'} />
+            </div>
+            <div>
+              <label>Hướng</label>
+              <select value={t.ticker?.direction ?? 'rtl'} onChange={e => { t.ticker!.direction = e.target.value as 'rtl' | 'ltr'; setP({ ...p }); }}>
+                <option value="rtl">← Phải → Trái</option>
+                <option value="ltr">Trái → Phải →</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Kích thước & Tốc độ */}
+          <div className="row">
+            <div><label>Size (px)</label><input type="number" value={t.ticker?.size ?? 48} onChange={e => { t.ticker!.size = Number(e.target.value||48); setP({ ...p }); }} /></div>
+            <div><label>Speed</label><input type="number" value={t.ticker?.speed ?? 250} onChange={e => { t.ticker!.speed = Number(e.target.value||250); setP({ ...p }); }} /></div>
+          </div>
+
+          {/* Màu & Độ trong suốt chữ */}
+          <div className="row">
+            <div><label>Màu chữ</label><input type="text" value={t.ticker?.color ?? "white"} onChange={e => { t.ticker!.color = e.target.value; setP({ ...p }); }} placeholder="white, #fff, rgb()" /></div>
+            <div><label>Opacity chữ</label><input type="number" min="0" max="1" step="0.05" value={t.ticker?.textOpacity ?? 1.0} onChange={e => { t.ticker!.textOpacity = Number(e.target.value); setP({ ...p }); }} /></div>
+          </div>
+
+          {/* Đậm & Nghiêng */}
+          <div className="row">
+            <div><label>Bold (Đậm)*</label><select value={t.ticker?.bold ? "1":"0"} onChange={e => { t.ticker!.bold = e.target.value==="1"; setP({ ...p }); }}><option value="0">Off</option><option value="1">On</option></select></div>
+            <div><label>Italic (Nghiêng)*</label><select value={t.ticker?.italic ? "1":"0"} onChange={e => { t.ticker!.italic = e.target.value==="1"; setP({ ...p }); }}><option value="0">Off</option><option value="1">On</option></select></div>
+          </div>
+          <div className="hint">* Lưu ý: Bold/Italic cần font đặc biệt (VD: Arial-Bold.ttf, Arial-Italic.ttf)</div>
+
+          {/* Bóng chữ */}
+          <div className="row">
+            <div><label>Shadow (Bóng)</label><select value={t.ticker?.shadow ? "1":"0"} onChange={e => { t.ticker!.shadow = e.target.value==="1"; setP({ ...p }); }}><option value="0">Off</option><option value="1">On</option></select></div>
+            <div><label>Shadow Color</label><input type="text" value={t.ticker?.shadowColor ?? "black"} onChange={e => { t.ticker!.shadowColor = e.target.value; setP({ ...p }); }} disabled={!t.ticker?.shadow} /></div>
+          </div>
+          {t.ticker?.shadow && (
+            <div className="row">
+              <div><label>Shadow X</label><input type="number" value={t.ticker?.shadowX ?? 2} onChange={e => { t.ticker!.shadowX = Number(e.target.value||2); setP({ ...p }); }} /></div>
+              <div><label>Shadow Y</label><input type="number" value={t.ticker?.shadowY ?? 2} onChange={e => { t.ticker!.shadowY = Number(e.target.value||2); setP({ ...p }); }} /></div>
+            </div>
+          )}
+
+          {/* Nền chữ */}
+          <div className="row">
+            <div><label>Box BG</label><select value={t.ticker?.box ? "1":"0"} onChange={e => { t.ticker!.box = e.target.value==="1"; setP({ ...p }); }}><option value="0">Off</option><option value="1">On</option></select></div>
+            <div><label>Box Color</label><input type="text" value={t.ticker?.boxColor ?? "black"} onChange={e => { t.ticker!.boxColor = e.target.value; setP({ ...p }); }} disabled={!t.ticker?.box} /></div>
+            <div><label>Box Opacity</label><input type="number" min="0" max="1" step="0.05" value={t.ticker?.boxOpacity ?? 0.55} onChange={e => { t.ticker!.boxOpacity = Number(e.target.value); setP({ ...p }); }} disabled={!t.ticker?.box} /></div>
           </div>
         </div>
 

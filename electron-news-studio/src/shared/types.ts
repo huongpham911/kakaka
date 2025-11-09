@@ -28,7 +28,26 @@ export type Project = {
   tracks: {
     video: VideoClip[];
     logo?: { src: string; start?: number; end?: number; pos?: string; opacity?: number; scale?: number };
-    ticker?: { text: string; font: string; size?: number; color?: string; y?: number; speed?: number; box?: boolean; direction?: 'rtl' | 'ltr' };
+    ticker?: {
+      text: string;
+      font: string;
+      size?: number;
+      color?: string;
+      y?: number;
+      speed?: number;
+      box?: boolean;
+      boxColor?: string;
+      boxOpacity?: number;
+      textOpacity?: number;
+      direction?: 'rtl' | 'ltr';
+      position?: 'header' | 'footer' | 'custom';
+      bold?: boolean;
+      italic?: boolean;
+      shadow?: boolean;
+      shadowColor?: string;
+      shadowX?: number;
+      shadowY?: number;
+    };
     frame?: { enable?: boolean; thickness?: number; color?: string };
     audio?: {
       bgm?: { src: string; gain?: number };

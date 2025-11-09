@@ -106,13 +106,14 @@ export function createExporter() {
 
     // Step 4: Apply ticker
     if (tracks.ticker?.text && tracks.ticker?.font) {
-      const ty   = tracks.ticker.y ?? (height - 80);
-      const spd  = tracks.ticker.speed ?? 250;
-      const size = tracks.ticker.size ?? 48;
-      const col  = tracks.ticker.color ?? "white";
-      const box  = tracks.ticker.box ? `:box=1:boxcolor=black@0.55:boxborderw=20` : ``;
-      const dir  = tracks.ticker.direction ?? 'rtl';
-      const textEsc = String(tracks.ticker.text).replace(/:/g, "\\:").replace(/'/g, "\\\\'");
+      const ticker = tracks.ticker;
+      const ty   = ticker.y ?? (height - 80);
+      const spd  = ticker.speed ?? 250;
+      const size = ticker.size ?? 48;
+      const col  = ticker.color ?? "white";
+      const dir  = ticker.direction ?? 'rtl';
+      const textOp = ticker.textOpacity ?? 1.0;
+      const textEsc = String(ticker.text).replace(/:/g, "\\:").replace(/'/g, "\\\\'");
 
       // Direction formulas:
       // RTL (right to left): x=w-mod(t*speed, tw+w) - starts from right, moves left
@@ -121,10 +122,39 @@ export function createExporter() {
         ? `w-mod(t*${spd}\\,tw+w)`
         : `mod(t*${spd}\\,tw+w)-tw`;
 
-      vf.push(
-        `[${currentLabel}]drawtext=fontfile='${tracks.ticker.font}':text='${textEsc}':fontsize=${size}:fontcolor=${col}` +
-        `:x=${xFormula}:y=${ty}${box}[vout]`
-      );
+      // Build font color with opacity (convert color to RGBA if needed)
+      let fontColor = col;
+      if (textOp < 1.0) {
+        // If color is a name or hex, convert to rgba with alpha
+        // For simplicity, append @alpha notation which FFmpeg supports
+        fontColor = `${col}@${textOp.toFixed(2)}`;
+      }
+
+      // Build drawtext parameters
+      let drawtextParams = `fontfile='${ticker.font}':text='${textEsc}':fontsize=${size}:fontcolor=${fontColor}:x=${xFormula}:y=${ty}`;
+
+      // Add shadow if enabled
+      if (ticker.shadow) {
+        const shadowCol = ticker.shadowColor ?? "black";
+        const shadowX = ticker.shadowX ?? 2;
+        const shadowY = ticker.shadowY ?? 2;
+        drawtextParams += `:shadowcolor=${shadowCol}:shadowx=${shadowX}:shadowy=${shadowY}`;
+      }
+
+      // Add box background if enabled
+      if (ticker.box) {
+        const boxCol = ticker.boxColor ?? "black";
+        const boxOp = ticker.boxOpacity ?? 0.55;
+        const boxColorWithAlpha = `${boxCol}@${boxOp.toFixed(2)}`;
+        drawtextParams += `:box=1:boxcolor=${boxColorWithAlpha}:boxborderw=20`;
+      }
+
+      // Note: FFmpeg drawtext doesn't directly support bold/italic via parameters
+      // These would need to be handled by using bold/italic font variants
+      // For now, we'll add a comment noting this limitation
+      // Users should load appropriate font files (e.g., Arial-Bold.ttf, Arial-Italic.ttf)
+
+      vf.push(`[${currentLabel}]drawtext=${drawtextParams}[vout]`);
     } else {
       vf.push(`[${currentLabel}]copy[vout]`);
     }
