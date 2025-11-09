@@ -247,13 +247,17 @@ export default function App() {
   }, []);
 
   const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    // Don't move playhead when clicking on clips or playhead itself
+    if ((e.target as HTMLElement).closest('.track-item, .playhead')) return;
+
     const target = e.currentTarget;
     const rect = target.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const percent = (x / rect.offsetWidth) * 100;
-    const clampedPercent = Math.max(0, Math.min(100, percent / timelineZoom));
+    // rect.width already accounts for CSS transform scale
+    const percent = (x / rect.width) * 100;
+    const clampedPercent = Math.max(0, Math.min(100, percent));
     setPlayheadPosition(clampedPercent);
-  }, [timelineZoom]);
+  }, []);
 
   const handleDragOver = (e: React.DragEvent, zone: string) => {
     e.preventDefault();
@@ -473,9 +477,12 @@ export default function App() {
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-    showToast('info', `Switched to ${theme === 'dark' ? 'light' : 'dark'} mode`);
-  }, [theme, showToast]);
+    setTheme(prev => {
+      const newTheme = prev === 'dark' ? 'light' : 'dark';
+      showToast('info', `Switched to ${newTheme} mode`);
+      return newTheme;
+    });
+  }, [showToast]);
 
   // Video preview controls
   const togglePlayPause = useCallback(() => {
@@ -540,8 +547,9 @@ export default function App() {
 
       const rect = timeline.getBoundingClientRect();
       const x = e.clientX - rect.left;
-      const percent = (x / rect.offsetWidth) * 100;
-      const clampedPercent = Math.max(0, Math.min(100, percent / timelineZoom));
+      // rect.width already accounts for CSS transform scale
+      const percent = (x / rect.width) * 100;
+      const clampedPercent = Math.max(0, Math.min(100, percent));
       setPlayheadPosition(clampedPercent);
     };
 
@@ -556,7 +564,7 @@ export default function App() {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDraggingPlayhead, timelineZoom]);
+  }, [isDraggingPlayhead]);
 
   // Keyboard shortcuts
   useEffect(() => {
