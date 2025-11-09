@@ -69,6 +69,10 @@ const defaultProj: Project = {
 export default function App() {
   const { state: p, setState: setP, undo, redo, canUndo, canRedo } = useHistory<Project>(defaultProj);
   const [dragOver, setDragOver] = useState<string | null>(null);
+  const [draggedClipId, setDraggedClipId] = useState<string | null>(null);
+  const [dragOverClipId, setDragOverClipId] = useState<string | null>(null);
+  const [timelineZoom, setTimelineZoom] = useState<number>(1); // 0.5x to 2x
+  const [playheadPosition, setPlayheadPosition] = useState<number>(0); // 0-100%
   const [activeTab, setActiveTab] = useState<'media' | 'settings'>('media');
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('landscape');
@@ -174,6 +178,53 @@ export default function App() {
     [newVideos[idx], newVideos[newIdx]] = [newVideos[newIdx], newVideos[idx]];
     setP(s => ({ ...s, tracks: { ...s.tracks, video: newVideos }}));
   };
+
+  // Drag and drop to reorder clips
+  const handleClipDragStart = useCallback((e: React.DragEvent, clipId: string) => {
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', clipId);
+    setDraggedClipId(clipId);
+  }, []);
+
+  const handleClipDragOver = useCallback((e: React.DragEvent, clipId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverClipId(clipId);
+  }, []);
+
+  const handleClipDragEnd = useCallback(() => {
+    setDraggedClipId(null);
+    setDragOverClipId(null);
+  }, []);
+
+  const handleClipDrop = useCallback((e: React.DragEvent, targetClipId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const sourceClipId = e.dataTransfer.getData('text/plain');
+    if (!sourceClipId || sourceClipId === targetClipId) {
+      setDraggedClipId(null);
+      setDragOverClipId(null);
+      return;
+    }
+
+    setP(s => {
+      const videos = [...s.tracks.video];
+      const sourceIdx = videos.findIndex(c => c.id === sourceClipId);
+      const targetIdx = videos.findIndex(c => c.id === targetClipId);
+
+      if (sourceIdx === -1 || targetIdx === -1) return s;
+
+      const [movedClip] = videos.splice(sourceIdx, 1);
+      videos.splice(targetIdx, 0, movedClip);
+
+      return { ...s, tracks: { ...s.tracks, video: videos }};
+    });
+
+    setDraggedClipId(null);
+    setDragOverClipId(null);
+    showToast('success', 'Clip reordered');
+  }, [setP, showToast]);
 
   const handleDragOver = (e: React.DragEvent, zone: string) => {
     e.preventDefault();
@@ -778,6 +829,30 @@ export default function App() {
             <span style={{fontSize: '12px', opacity: 0.7}}>
               Total: {(t.intro?.duration || 0) + t.video.reduce((acc, c) => acc + (c.duration || 5), 0) + (t.outro?.duration || 0)}s
             </span>
+
+            {/* Zoom Controls */}
+            <div style={{display: 'flex', gap: '4px', alignItems: 'center', marginLeft: '8px'}}>
+              <button
+                className="btn-timeline-zoom"
+                onClick={() => setTimelineZoom(Math.max(0.5, timelineZoom - 0.25))}
+                disabled={timelineZoom <= 0.5}
+                title="Zoom out timeline"
+              >
+                🔍−
+              </button>
+              <span style={{fontSize: '11px', minWidth: '45px', textAlign: 'center', opacity: 0.8}}>
+                {(timelineZoom * 100).toFixed(0)}%
+              </span>
+              <button
+                className="btn-timeline-zoom"
+                onClick={() => setTimelineZoom(Math.min(2, timelineZoom + 0.25))}
+                disabled={timelineZoom >= 2}
+                title="Zoom in timeline"
+              >
+                🔍+
+              </button>
+            </div>
+
             <button
               className="btn-add-track"
               onClick={() => {
@@ -897,7 +972,10 @@ export default function App() {
               </div>
               <div className="track-label-subtitle">Layer 1</div>
             </div>
-            <div className="track-content">
+            <div className="track-content" style={{transformOrigin: 'left', transform: `scaleX(${timelineZoom})`, position: 'relative'}}>
+              {/* Playhead */}
+              <div className="playhead" style={{left: `${playheadPosition}%`}} title={`Playhead: ${playheadPosition.toFixed(1)}%`} />
+
               {/* Intro */}
               {t.intro?.src && (
                 <div className="track-item" onClick={() => setSelectedClip(null)}>
@@ -910,8 +988,19 @@ export default function App() {
               {t.video.map((clip, idx) => (
                 <div key={clip.id}
                   className="track-item"
+                  draggable
+                  onDragStart={(e) => handleClipDragStart(e, clip.id)}
+                  onDragOver={(e) => handleClipDragOver(e, clip.id)}
+                  onDragEnd={handleClipDragEnd}
+                  onDrop={(e) => handleClipDrop(e, clip.id)}
                   onClick={() => setSelectedClip(clip.id)}
-                  style={selectedClip === clip.id ? {borderColor: '#3b82f6', background: '#212e42'} : {}}>
+                  title="Drag to reorder"
+                  style={{
+                    ...(selectedClip === clip.id ? {borderColor: '#3b82f6', background: '#212e42'} : {}),
+                    ...(draggedClipId === clip.id ? {opacity: 0.5} : {}),
+                    ...(dragOverClipId === clip.id && draggedClipId !== clip.id ? {borderColor: '#10b981', borderStyle: 'solid'} : {}),
+                    cursor: 'grab'
+                  }}>
                   <div className="track-item-name">📹 Clip #{idx + 1}</div>
                   <div className="track-item-info">
                     {clip.duration || 5}s • {clip.transition?.type || 'fade'}
