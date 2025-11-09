@@ -106,6 +106,8 @@ export default function App() {
     message: string;
     onConfirm: () => void;
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  const [recentProjects, setRecentProjects] = useState<Array<{ path: string; name: string; timestamp: number }>>([]);
+  const [showRecentMenu, setShowRecentMenu] = useState<boolean>(false);
 
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
@@ -392,6 +394,47 @@ export default function App() {
     }
   }
 
+  // Add project to recent projects list
+  const addToRecentProjects = useCallback((filePath: string) => {
+    const projectName = filePath.split('/').pop() || filePath.split('\\').pop() || 'Untitled';
+    const newEntry = { path: filePath, name: projectName, timestamp: Date.now() };
+
+    setRecentProjects(prev => {
+      // Remove duplicate if exists
+      const filtered = prev.filter(p => p.path !== filePath);
+      // Add to front and limit to 10
+      const updated = [newEntry, ...filtered].slice(0, 10);
+      // Save to localStorage
+      localStorage.setItem('recentProjects', JSON.stringify(updated));
+      return updated;
+    });
+  }, []);
+
+  // Clear recent projects list
+  const clearRecentProjects = useCallback(() => {
+    setRecentProjects([]);
+    localStorage.removeItem('recentProjects');
+    showToast('info', 'Recent projects cleared');
+  }, [showToast]);
+
+  // Load project from recent list
+  const loadFromRecent = useCallback(async (filePath: string) => {
+    if (!window.electronAPI?.loadProject) {
+      showToast('error', 'Load not available. Run via Electron.');
+      return;
+    }
+    try {
+      // For now, we'll need to modify the electronAPI to support loading from a specific path
+      // Since we don't have that yet, we'll show a toast
+      showToast('info', `Loading: ${filePath}`);
+      // TODO: Implement loadProjectFromPath in electronAPI
+      setShowRecentMenu(false);
+    } catch (e: any) {
+      console.error(e);
+      showToast('error', `Load error: ${e?.message || 'Unknown error'}`);
+    }
+  }, [showToast]);
+
   // Save project
   async function saveProject() {
     if (!window.electronAPI?.saveProject) {
@@ -403,6 +446,7 @@ export default function App() {
       const filePath = await window.electronAPI.saveProject(projectData);
       if (filePath) {
         localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, filePath);
+        addToRecentProjects(filePath);
         showToast('success', `Project saved: ${filePath}`);
       }
     } catch (e: any) {
@@ -423,6 +467,7 @@ export default function App() {
         const loadedProject = JSON.parse(result.data);
         setP(loadedProject);
         localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, result.path);
+        addToRecentProjects(result.path);
         showToast('success', `Project loaded: ${result.path}`);
       }
     } catch (e: any) {
@@ -468,7 +513,7 @@ export default function App() {
     }
   }, []);
 
-  // Theme management
+  // Theme management and load preferences on mount
   useEffect(() => {
     // Load theme from localStorage on mount
     const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null;
@@ -491,6 +536,19 @@ export default function App() {
       const speed = parseFloat(savedSpeed);
       if (!isNaN(speed) && speed >= 0.25 && speed <= 2) {
         setPlaybackSpeed(speed);
+      }
+    }
+
+    // Load recent projects from localStorage
+    const savedRecent = localStorage.getItem('recentProjects');
+    if (savedRecent) {
+      try {
+        const parsed = JSON.parse(savedRecent);
+        if (Array.isArray(parsed)) {
+          setRecentProjects(parsed);
+        }
+      } catch (e) {
+        console.error('Failed to load recent projects:', e);
       }
     }
   }, []);
@@ -696,6 +754,21 @@ export default function App() {
       document.removeEventListener('mouseup', handleMouseUp);
     };
   }, [isDraggingSeekbar, seekVideo]);
+
+  // Close recent menu when clicking outside
+  useEffect(() => {
+    if (!showRecentMenu) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.btn-recent-toggle') && !target.closest('.btn-load')) {
+        setShowRecentMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [showRecentMenu]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -1154,9 +1227,125 @@ export default function App() {
           💾 Save
         </button>
 
-        <button className="btn-load" onClick={loadProject} title="Load project">
-          📂 Load
-        </button>
+        <div style={{ position: 'relative', display: 'inline-block' }}>
+          <button className="btn-load" onClick={loadProject} title="Load project">
+            📂 Load
+          </button>
+
+          {/* Recent Projects Dropdown Toggle */}
+          <button
+            className="btn-recent-toggle"
+            onClick={() => setShowRecentMenu(!showRecentMenu)}
+            title="Recent projects"
+            style={{
+              marginLeft: '4px',
+              padding: '8px 10px',
+              fontSize: '14px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border)',
+              borderRadius: '6px',
+              cursor: 'pointer',
+              color: 'var(--text-primary)'
+            }}
+          >
+            ▼
+          </button>
+
+          {/* Recent Projects Dropdown Menu */}
+          {showRecentMenu && (
+            <div
+              style={{
+                position: 'absolute',
+                top: '100%',
+                left: 0,
+                marginTop: '4px',
+                minWidth: '300px',
+                maxWidth: '400px',
+                background: 'var(--bg-secondary)',
+                border: '1px solid var(--border)',
+                borderRadius: '8px',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
+                zIndex: 1000,
+                padding: '8px 0'
+              }}
+            >
+              <div style={{
+                padding: '8px 12px',
+                fontSize: '13px',
+                fontWeight: '600',
+                color: 'var(--text-primary)',
+                borderBottom: '1px solid var(--border)'
+              }}>
+                Recent Projects
+              </div>
+
+              {recentProjects.length === 0 ? (
+                <div style={{
+                  padding: '16px 12px',
+                  fontSize: '13px',
+                  color: 'var(--text-secondary)',
+                  textAlign: 'center',
+                  opacity: 0.7
+                }}>
+                  No recent projects
+                </div>
+              ) : (
+                <>
+                  {recentProjects.map((project, idx) => (
+                    <div
+                      key={project.path}
+                      onClick={() => loadFromRecent(project.path)}
+                      style={{
+                        padding: '10px 12px',
+                        cursor: 'pointer',
+                        fontSize: '13px',
+                        borderBottom: idx < recentProjects.length - 1 ? '1px solid var(--border)' : 'none',
+                        transition: 'background 0.2s'
+                      }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <div style={{ fontWeight: '500', color: 'var(--text-primary)', marginBottom: '4px' }}>
+                        📄 {project.name}
+                      </div>
+                      <div style={{
+                        fontSize: '11px',
+                        color: 'var(--text-secondary)',
+                        opacity: 0.7,
+                        whiteSpace: 'nowrap',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis'
+                      }}>
+                        {project.path}
+                      </div>
+                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', opacity: 0.6, marginTop: '2px' }}>
+                        {new Date(project.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                  ))}
+
+                  <div
+                    onClick={clearRecentProjects}
+                    style={{
+                      padding: '10px 12px',
+                      cursor: 'pointer',
+                      fontSize: '13px',
+                      color: '#ef4444',
+                      fontWeight: '500',
+                      marginTop: '4px',
+                      borderTop: '1px solid var(--border)',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    🗑️ Clear History
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
 
         <div className="toolbar-divider"></div>
 
