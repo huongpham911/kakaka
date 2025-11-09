@@ -153,6 +153,105 @@ export default function App() {
     setP(old => ({ ...old, width: w, height: h }));
   };
 
+  // Project templates
+  const applyProjectTemplate = (template: string) => {
+    switch (template) {
+      case 'news-report':
+        setP({
+          ...p,
+          fps: 30,
+          width: 1920,
+          height: 1080,
+          duration: 60,
+          tracks: {
+            ...p.tracks,
+            ticker: {
+              text: "TIN NÓNG: Chữ chạy tin tức | ",
+              font: "",
+              size: 48,
+              color: "white",
+              y: 1000,
+              speed: 250,
+              box: true,
+              boxColor: "black",
+              boxOpacity: 0.7,
+              textOpacity: 1.0,
+              direction: 'rtl',
+              position: 'footer',
+              bold: true,
+              italic: false,
+              shadow: true,
+              shadowColor: "black",
+              shadowX: 2,
+              shadowY: 2
+            },
+            frame: { enable: true, thickness: 12, color: "white@0.9" }
+          }
+        });
+        setAspectRatio('landscape');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied News Report template');
+        break;
+      case 'social-media':
+        setP({
+          ...p,
+          fps: 30,
+          width: 1080,
+          height: 1920,
+          duration: 30,
+          tracks: {
+            ...p.tracks,
+            ticker: { ...p.tracks.ticker!, position: 'header', y: 100 },
+            frame: { enable: false, thickness: 0, color: "" }
+          }
+        });
+        setAspectRatio('portrait');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied Social Media template (Vertical)');
+        break;
+      case 'tutorial':
+        setP({
+          ...p,
+          fps: 30,
+          width: 1920,
+          height: 1080,
+          duration: 120,
+          tracks: {
+            ...p.tracks,
+            ticker: { ...p.tracks.ticker!, position: 'custom', y: 900 },
+            frame: { enable: true, thickness: 8, color: "#3b82f6@0.8" }
+          }
+        });
+        setAspectRatio('landscape');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied Tutorial template');
+        break;
+      case 'promo':
+        setP({
+          ...p,
+          fps: 30,
+          width: 1920,
+          height: 1080,
+          duration: 15,
+          tracks: {
+            ...p.tracks,
+            ticker: { ...p.tracks.ticker!, position: 'footer', bold: true, shadow: true },
+            frame: { enable: true, thickness: 16, color: "gold@0.9" }
+          }
+        });
+        setAspectRatio('landscape');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied Promo template');
+        break;
+      case 'blank':
+        setP(defaultProj);
+        setAspectRatio('landscape');
+        setResolutionPreset('1080p');
+        showToast('info', 'Reset to blank project');
+        break;
+    }
+  };
+
   // Export presets for different platforms
   const applyExportPreset = (preset: string) => {
     setExportPreset(preset);
@@ -1356,6 +1455,32 @@ export default function App() {
         {/* ==================== SETTINGS TAB ==================== */}
         {activeTab === 'settings' && (
           <div className="tab-content">
+            {/* Project Templates */}
+            <div className="section">
+              <h3 className="section-title">📋 Project Templates</h3>
+              <label>Apply Template</label>
+              <select
+                onChange={e => {
+                  if (e.target.value && e.target.value !== '') {
+                    applyProjectTemplate(e.target.value);
+                    e.target.value = ''; // Reset dropdown
+                  }
+                }}
+                style={{fontWeight: '600'}}
+                defaultValue=""
+              >
+                <option value="">-- Select Template --</option>
+                <option value="blank">🔄 Blank Project</option>
+                <option value="news-report">📰 News Report</option>
+                <option value="social-media">📱 Social Media (Vertical)</option>
+                <option value="tutorial">📚 Tutorial</option>
+                <option value="promo">✨ Promo/Ad</option>
+              </select>
+              <div className="hint" style={{marginTop: '8px', fontSize: '11px'}}>
+                Templates provide pre-configured settings for common video types
+              </div>
+            </div>
+
             {/* Project Settings */}
             <div className="section">
               <h3 className="section-title">⚙️ Project</h3>
