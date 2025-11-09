@@ -1,5 +1,6 @@
 import ffmpeg from "fluent-ffmpeg";
 import path from "node:path";
+import type { Project } from "../../shared/types.js";
 
 type Pos = { x: string, y: string };
 function posExpr(pos: string): Pos {
@@ -19,7 +20,7 @@ export function createExporter() {
   }
 
   async function exportProject(
-    project: any,
+    project: Project,
     onProgress?: (percent: number, timemark: string) => void
   ): Promise<string> {
     const { width, height, fps, duration, tracks } = project;
@@ -102,7 +103,8 @@ export function createExporter() {
         const output = `t${i}`;
 
         const clipDur = clip.duration || 5;
-        offset += clipDur - transDur;
+        // Prevent negative offset
+        offset += Math.max(0, clipDur - transDur);
 
         if (transType === 'none') {
           // No transition, just concat
@@ -132,7 +134,7 @@ export function createExporter() {
     if (segments.length === 0) {
       throw new Error("No video segments to process");
     } else if (segments.length === 1) {
-      vf.push(`[${segments[0]}]copy[base]`);
+      vf.push(`[${segments[0]}]null[base]`);
     } else {
       // Concatenate multiple segments
       vf.push(`[${segments.join('][')}]concat=n=${segments.length}:v=1:a=0[base]`);
@@ -150,7 +152,7 @@ export function createExporter() {
       );
       currentLabel = 'v1';
     } else {
-      vf.push(`[base]copy[v1]`);
+      vf.push(`[base]null[v1]`);
       currentLabel = 'v1';
     }
 
@@ -166,7 +168,7 @@ export function createExporter() {
       );
       currentLabel = 'v5';
     } else {
-      vf.push(`[${currentLabel}]copy[v5]`);
+      vf.push(`[${currentLabel}]null[v5]`);
       currentLabel = 'v5';
     }
 
@@ -179,7 +181,14 @@ export function createExporter() {
       const col  = ticker.color ?? "white";
       const dir  = ticker.direction ?? 'rtl';
       const textOp = ticker.textOpacity ?? 1.0;
-      const textEsc = String(ticker.text).replace(/:/g, "\\:").replace(/'/g, "\\\\'");
+      // Properly escape FFmpeg drawtext special characters
+      const textEsc = String(ticker.text)
+        .replace(/\\/g, "\\\\\\\\")  // Escape backslash first
+        .replace(/:/g, "\\:")
+        .replace(/'/g, "\\\\'")
+        .replace(/\[/g, "\\[")
+        .replace(/\]/g, "\\]")
+        .replace(/%/g, "\\%");
 
       // Direction formulas:
       // RTL (right to left): x=w-mod(t*speed, tw+w) - starts from right, moves left
@@ -222,7 +231,7 @@ export function createExporter() {
 
       vf.push(`[${currentLabel}]drawtext=${drawtextParams}[vout]`);
     } else {
-      vf.push(`[${currentLabel}]copy[vout]`);
+      vf.push(`[${currentLabel}]null[vout]`);
     }
 
     // Step 8: Audio chain
@@ -284,22 +293,38 @@ export function createExporter() {
         .save(out)
         .on("progress", (progress: any) => {
           if (onProgress && progress.timemark && duration) {
-            // Parse timemark (format: HH:MM:SS.MS)
-            const parts = progress.timemark.split(':');
-            if (parts.length === 3) {
-              const hours = parseFloat(parts[0]);
-              const minutes = parseFloat(parts[1]);
-              const seconds = parseFloat(parts[2]);
-              const currentTime = hours * 3600 + minutes * 60 + seconds;
+            try {
+              // Parse timemark (format: HH:MM:SS.MS)
+              const parts = progress.timemark.split(':');
+              if (parts.length === 3) {
+                const hours = parseFloat(parts[0]);
+                const minutes = parseFloat(parts[1]);
+                const seconds = parseFloat(parts[2]);
 
-              // Calculate total duration including intro/outro
-              const totalDuration =
-                (tracks.intro?.duration || 0) +
-                duration +
-                (tracks.outro?.duration || 0);
+                // Validate parsed values
+                if (!isNaN(hours) && !isNaN(minutes) && !isNaN(seconds)) {
+                  const currentTime = hours * 3600 + minutes * 60 + seconds;
 
-              const percent = Math.min(100, Math.max(0, (currentTime / totalDuration) * 100));
-              onProgress(percent, progress.timemark);
+                  // Calculate total duration accounting for transitions
+                  let totalDuration = (tracks.intro?.duration || 0) + (tracks.outro?.duration || 0);
+
+                  // Add main clips duration minus transition overlaps
+                  for (let i = 0; i < videoClips.length; i++) {
+                    const clipDur = videoClips[i].duration || 5;
+                    totalDuration += clipDur;
+                    // Subtract transition overlap (except for last clip)
+                    if (i < videoClips.length - 1) {
+                      const nextTransDur = videoClips[i + 1].transition?.duration || 1;
+                      totalDuration -= Math.min(nextTransDur, clipDur);
+                    }
+                  }
+
+                  const percent = Math.min(100, Math.max(0, (currentTime / totalDuration) * 100));
+                  onProgress(percent, progress.timemark);
+                }
+              }
+            } catch (err) {
+              console.error("Error parsing progress timemark:", err);
             }
           }
         })

@@ -7,27 +7,10 @@ const isDev = !!process.env.VITE_DEV_SERVER;
 
 let win: BrowserWindow | null = null;
 
-async function createWindow() {
-  win = new BrowserWindow({
-    width: 1280,
-    height: 800,
-    webPreferences: {
-      preload: path.join(app.getAppPath(), "dist", "main", "preload.cjs"),
-      nodeIntegration: false,
-      contextIsolation: true
-    }
-  });
-
-  const devURL = "http://localhost:5173";
-  const prodURL = path.join(app.getAppPath(), "dist", "renderer", "index.html");
-  if (isDev) {
-    await win.loadURL(devURL);
-    win.webContents.openDevTools();
-  } else {
-    await win.loadFile(prodURL);
-  }
-
+// Setup IPC handlers once
+function setupIpcHandlers() {
   const exporter = createExporter();
+
   ipcMain.handle("export", async (event, project) => {
     return await exporter.exportProject(project, (percent, timemark) => {
       // Send progress update to renderer
@@ -83,7 +66,29 @@ async function createWindow() {
   });
 }
 
+async function createWindow() {
+  win = new BrowserWindow({
+    width: 1280,
+    height: 800,
+    webPreferences: {
+      preload: path.join(app.getAppPath(), "dist", "main", "preload.cjs"),
+      nodeIntegration: false,
+      contextIsolation: true
+    }
+  });
+
+  const devURL = "http://localhost:5173";
+  const prodURL = path.join(app.getAppPath(), "dist", "renderer", "index.html");
+  if (isDev) {
+    await win.loadURL(devURL);
+    win.webContents.openDevTools();
+  } else {
+    await win.loadFile(prodURL);
+  }
+}
+
 app.whenReady().then(() => {
+  setupIpcHandlers(); // Setup IPC handlers once
   createWindow();
   app.on("activate", () => { if (BrowserWindow.getAllWindows().length === 0) createWindow(); });
 });

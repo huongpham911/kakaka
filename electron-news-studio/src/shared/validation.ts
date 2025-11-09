@@ -19,7 +19,16 @@ export function validateFileSize(size: number): ValidationResult {
 
 export function validateVideoFormat(fileName: string): ValidationResult {
   const validExtensions = ['.mp4', '.mov', '.avi', '.mkv', '.webm', '.m4v', '.flv'];
-  const ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+  const dotIndex = fileName.lastIndexOf('.');
+
+  if (dotIndex === -1) {
+    return {
+      valid: false,
+      error: 'File has no extension'
+    };
+  }
+
+  const ext = fileName.toLowerCase().substring(dotIndex);
 
   if (!validExtensions.includes(ext)) {
     return {
@@ -32,7 +41,16 @@ export function validateVideoFormat(fileName: string): ValidationResult {
 
 export function validateAudioFormat(fileName: string): ValidationResult {
   const validExtensions = ['.mp3', '.wav', '.aac', '.m4a', '.ogg', '.flac'];
-  const ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+  const dotIndex = fileName.lastIndexOf('.');
+
+  if (dotIndex === -1) {
+    return {
+      valid: false,
+      error: 'File has no extension'
+    };
+  }
+
+  const ext = fileName.toLowerCase().substring(dotIndex);
 
   if (!validExtensions.includes(ext)) {
     return {
@@ -45,7 +63,16 @@ export function validateAudioFormat(fileName: string): ValidationResult {
 
 export function validateImageFormat(fileName: string): ValidationResult {
   const validExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg'];
-  const ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+  const dotIndex = fileName.lastIndexOf('.');
+
+  if (dotIndex === -1) {
+    return {
+      valid: false,
+      error: 'File has no extension'
+    };
+  }
+
+  const ext = fileName.toLowerCase().substring(dotIndex);
 
   if (!validExtensions.includes(ext)) {
     return {
@@ -58,7 +85,16 @@ export function validateImageFormat(fileName: string): ValidationResult {
 
 export function validateFontFormat(fileName: string): ValidationResult {
   const validExtensions = ['.ttf', '.otf', '.woff', '.woff2'];
-  const ext = fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+  const dotIndex = fileName.lastIndexOf('.');
+
+  if (dotIndex === -1) {
+    return {
+      valid: false,
+      error: 'File has no extension'
+    };
+  }
+
+  const ext = fileName.toLowerCase().substring(dotIndex);
 
   if (!validExtensions.includes(ext)) {
     return {
@@ -168,7 +204,9 @@ export function validateTickerText(text: string): ValidationResult {
 
 // Helper to get file extension
 export function getFileExtension(fileName: string): string {
-  return fileName.toLowerCase().substring(fileName.lastIndexOf('.'));
+  const dotIndex = fileName.lastIndexOf('.');
+  if (dotIndex === -1) return '';
+  return fileName.toLowerCase().substring(dotIndex);
 }
 
 // Helper to check if file is video

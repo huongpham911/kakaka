@@ -547,33 +547,69 @@ export default function App() {
         addVideoClip(filePath);
         break;
       case 'intro':
-        t.intro = { src: filePath, duration: 3 };
-        setP({ ...p });
+        setP(prev => ({
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            intro: { src: filePath, duration: 3 }
+          }
+        }));
         showToast('success', 'Intro video added');
         break;
       case 'outro':
-        t.outro = { src: filePath, duration: 3 };
-        setP({ ...p });
+        setP(prev => ({
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            outro: { src: filePath, duration: 3 }
+          }
+        }));
         showToast('success', 'Outro video added');
         break;
       case 'logo':
-        t.logo!.src = filePath;
-        setP({ ...p });
+        setP(prev => ({
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            logo: { ...prev.tracks.logo!, src: filePath }
+          }
+        }));
         showToast('success', 'Logo image added');
         break;
       case 'font':
-        t.ticker!.font = filePath;
-        setP({ ...p });
+        setP(prev => ({
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            ticker: { ...prev.tracks.ticker!, font: filePath }
+          }
+        }));
         showToast('success', 'Ticker font added');
         break;
       case 'bgm':
-        t.audio!.bgm!.src = filePath;
-        setP({ ...p });
+        setP(prev => ({
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            audio: {
+              ...prev.tracks.audio!,
+              bgm: { ...prev.tracks.audio!.bgm!, src: filePath }
+            }
+          }
+        }));
         showToast('success', 'Background music added');
         break;
       case 'voice':
-        t.audio!.voice!.src = filePath;
-        setP({ ...p });
+        setP(prev => ({
+          ...prev,
+          tracks: {
+            ...prev.tracks,
+            audio: {
+              ...prev.tracks.audio!,
+              voice: { ...prev.tracks.audio!.voice!, src: filePath }
+            }
+          }
+        }));
         showToast('success', 'Voice-over added');
         break;
     }
@@ -735,7 +771,7 @@ export default function App() {
     } catch (e) {
       console.error("Failed to restore auto-save:", e);
     }
-  }, []);
+  }, [showConfirm, showToast, setP]);
 
   // Theme management and load preferences on mount
   useEffect(() => {
