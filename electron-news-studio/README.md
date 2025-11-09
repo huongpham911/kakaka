@@ -9,15 +9,26 @@ Electron + React application for creating professional news-style videos with:
 
 ## Features
 
-- **Video Processing**: Import main video and apply multiple effects
+- **Tabbed Interface**: Organized Media and Settings tabs for efficient workflow
+- **Video Timeline**:
+  - Intro/outro video support
+  - Multi-clip timeline with drag & drop
+  - 13 transition types (fade, wipe, slide, circle, dissolve, etc.)
+  - Per-clip duration and transition controls
 - **Logo Overlay**: Position logo anywhere (top-left, top-right, bottom-left, bottom-right, center)
-- **News Ticker**: Scrolling text with custom font, size, color, and speed
+- **News Ticker**: Comprehensive customization
+  - Scrolling text (RTL/LTR direction)
+  - Custom font, size, color with opacity
+  - Text shadow with color and offset controls
+  - Background box with opacity
+  - Position presets (header/footer/custom)
 - **Frame Border**: Optional decorative border around video
 - **Audio Mixing**:
   - Background music with gain control
   - Voice-over with automatic music ducking
   - Independent gain controls for both tracks
 - **Export**: Professional MP4 output with all effects applied
+- **Real-time Stats**: Project overview sidebar showing loaded assets
 
 ## Prerequisites
 
@@ -69,20 +80,44 @@ Distributables will be created in the `dist` directory.
 
 ## Usage
 
-1. **Select Main Video**: Choose your primary video file
-2. **Configure Settings**:
-   - Set duration and FPS
-   - Upload logo (PNG/JPG)
-   - Choose ticker font (TTF/OTF)
-   - Add background music and/or voice-over
-3. **Customize Effects**:
-   - Adjust logo position, opacity, and scale
-   - Configure ticker text, speed, and appearance
-   - Enable/disable frame border
-   - Control audio levels and ducking
-4. **Export**: Click "Export MP4" to generate the final video
+### Media Tab
+1. **Video Section**:
+   - Upload intro video (optional)
+   - Add main timeline clips with drag & drop (supports multiple files)
+   - Upload outro video (optional)
+   - Configure transitions between clips (13 types available)
+   - Adjust clip durations
+   - Add logo overlay with position/opacity/scale controls
 
-Output will be saved as `output_news.mp4` in the current directory.
+2. **Audio Section**:
+   - Upload background music (BGM)
+   - Upload voice/narration
+   - Adjust gain levels (dB)
+   - Enable/disable BGM ducking
+
+3. **Text/Ticker Section**:
+   - Enter scrolling ticker text
+   - Upload custom font (TTF/OTF)
+   - Set position (header/footer/custom)
+   - Choose direction (RTL/LTR)
+   - Customize colors, opacity, shadow, background box
+
+### Settings Tab
+1. **Project Settings**:
+   - Set FPS, width, height, duration
+
+2. **Frame Border**:
+   - Enable/disable decorative border
+   - Adjust thickness and color with opacity
+
+3. **Export**:
+   - Click "Export MP4" to render final video
+   - Output saved as `output_news.mp4` in working directory
+
+### Tips
+- Use drag & drop for quick file import
+- The Project Stats panel shows all loaded assets
+- Logo and ticker apply to all video segments (intro/main/outro)
 
 ## Project Structure
 

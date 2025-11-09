@@ -26,7 +26,9 @@ export type Project = {
   height: number;
   duration: number;
   tracks: {
+    intro?: { src: string; duration?: number };
     video: VideoClip[];
+    outro?: { src: string; duration?: number };
     logo?: { src: string; start?: number; end?: number; pos?: string; opacity?: number; scale?: number };
     ticker?: {
       text: string;

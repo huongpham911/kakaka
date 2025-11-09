@@ -21,25 +21,69 @@ export function createExporter() {
   async function exportProject(project: any): Promise<string> {
     const { width, height, fps, duration, tracks } = project;
     const videoClips = tracks.video || [];
+    const hasIntro = !!tracks.intro?.src;
+    const hasOutro = !!tracks.outro?.src;
 
-    if (videoClips.length === 0) throw new Error("No video clips in timeline");
+    if (videoClips.length === 0 && !hasIntro && !hasOutro) {
+      throw new Error("No video content (need at least intro, main clips, or outro)");
+    }
 
     const out = path.resolve(process.cwd(), "output_news.mp4");
     const vf: string[] = [];
 
-    // Step 1: Build video timeline with transitions
-    let currentLabel = 'base';
+    // Track input indices
+    let inputIdx = 0;
+    const inputs: string[] = [];
 
-    if (videoClips.length === 1) {
+    // Add intro to inputs if present
+    if (hasIntro) {
+      inputs.push(tracks.intro.src);
+      inputIdx++;
+    }
+
+    // Add main video clips to inputs
+    const videoStartIdx = inputIdx;
+    videoClips.forEach((clip: any) => {
+      inputs.push(clip.src);
+      inputIdx++;
+    });
+
+    // Add outro to inputs if present
+    const outroIdx = hasOutro ? inputIdx : -1;
+    if (hasOutro) {
+      inputs.push(tracks.outro.src);
+      inputIdx++;
+    }
+
+    // Logo, BGM, Voice come after all video inputs
+    const logoIdx = tracks.logo?.src ? inputIdx++ : -1;
+    const bgmIdx = tracks.audio?.bgm?.src ? inputIdx++ : -1;
+    const voiceIdx = tracks.audio?.voice?.src ? inputIdx++ : -1;
+
+    // Step 1: Process intro (if exists)
+    if (hasIntro) {
+      const introDur = tracks.intro.duration || 3;
+      vf.push(`[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${introDur},setpts=PTS-STARTPTS[intro]`);
+    }
+
+    // Step 2: Process main timeline
+    let mainLabel = 'main';
+
+    if (videoClips.length === 0) {
+      // No main clips, skip
+      mainLabel = '';
+    } else if (videoClips.length === 1) {
       // Single clip - simple case
       const clip = videoClips[0];
       const clipDur = clip.duration || 5;
-      vf.push(`[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${clipDur},setpts=PTS-STARTPTS[base]`);
+      const idx = videoStartIdx;
+      vf.push(`[${idx}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${clipDur},setpts=PTS-STARTPTS[main]`);
     } else {
       // Multiple clips with transitions
-      videoClips.forEach((clip, i) => {
+      videoClips.forEach((clip: any, i: number) => {
         const clipDur = clip.duration || 5;
-        vf.push(`[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${clipDur},setpts=PTS-STARTPTS[v${i}]`);
+        const idx = videoStartIdx + i;
+        vf.push(`[${idx}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${clipDur},setpts=PTS-STARTPTS[v${i}]`);
       });
 
       // Apply transitions between clips
@@ -67,14 +111,33 @@ export function createExporter() {
         }
       }
 
-      currentLabel = `t${videoClips.length - 2}`;
-      vf.push(`[${currentLabel}]copy[base]`);
+      mainLabel = `t${videoClips.length - 2}`;
     }
 
-    // Step 2: Apply logo overlay
-    let logoIdx = -1;
-    if (tracks.logo?.src) {
-      logoIdx = videoClips.length;
+    // Step 3: Process outro (if exists)
+    if (hasOutro) {
+      const outroDur = tracks.outro.duration || 3;
+      vf.push(`[${outroIdx}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${outroDur},setpts=PTS-STARTPTS[outro]`);
+    }
+
+    // Step 4: Concatenate intro + main + outro
+    const segments: string[] = [];
+    if (hasIntro) segments.push('intro');
+    if (mainLabel) segments.push(mainLabel);
+    if (hasOutro) segments.push('outro');
+
+    if (segments.length === 0) {
+      throw new Error("No video segments to process");
+    } else if (segments.length === 1) {
+      vf.push(`[${segments[0]}]copy[base]`);
+    } else {
+      // Concatenate multiple segments
+      vf.push(`[${segments.join('][')}]concat=n=${segments.length}:v=1:a=0[base]`);
+    }
+
+    // Step 5: Apply logo overlay
+    let currentLabel = 'base';
+    if (logoIdx >= 0) {
       const pos = posExpr(tracks.logo.pos || "top-right");
       const op  = tracks.logo.opacity ?? 0.9;
       const lsc = tracks.logo.scale ?? 220;
@@ -88,7 +151,7 @@ export function createExporter() {
       currentLabel = 'v1';
     }
 
-    // Step 3: Apply frame border
+    // Step 6: Apply frame border
     if (tracks.frame?.enable) {
       const t = tracks.frame.thickness ?? 12;
       const c = tracks.frame.color ?? "white@0.85";
@@ -104,7 +167,7 @@ export function createExporter() {
       currentLabel = 'v5';
     }
 
-    // Step 4: Apply ticker
+    // Step 7: Apply ticker
     if (tracks.ticker?.text && tracks.ticker?.font) {
       const ticker = tracks.ticker;
       const ty   = ticker.y ?? (height - 80);
@@ -159,14 +222,8 @@ export function createExporter() {
       vf.push(`[${currentLabel}]copy[vout]`);
     }
 
-    // Step 5: Audio chain
+    // Step 8: Audio chain
     const af: string[] = [];
-    let bgmIdx = -1, voiceIdx = -1;
-    let audioOffset = videoClips.length;
-    if (tracks.logo?.src) audioOffset++;
-
-    if (tracks.audio?.bgm?.src) bgmIdx = audioOffset++;
-    if (tracks.audio?.voice?.src) voiceIdx = audioOffset++;
 
     const aIns: string[] = [];
     if (voiceIdx >= 0) aIns.push(`${voiceIdx}:a`);
@@ -203,13 +260,13 @@ export function createExporter() {
     return await new Promise<string>((resolve, reject) => {
       const pipeline = ffmpeg();
 
-      // Add all video clips as inputs
-      videoClips.forEach(clip => pipeline.input(clip.src));
-
-      // Add logo, bgm, voice
-      if (tracks.logo?.src) pipeline.input(tracks.logo.src);
-      if (tracks.audio?.bgm?.src) pipeline.input(tracks.audio.bgm.src);
-      if (tracks.audio?.voice?.src) pipeline.input(tracks.audio.voice.src);
+      // Add all inputs in order
+      if (hasIntro) pipeline.input(tracks.intro.src);
+      videoClips.forEach((clip: any) => pipeline.input(clip.src));
+      if (hasOutro) pipeline.input(tracks.outro.src);
+      if (logoIdx >= 0) pipeline.input(tracks.logo.src);
+      if (bgmIdx >= 0) pipeline.input(tracks.audio.bgm.src);
+      if (voiceIdx >= 0) pipeline.input(tracks.audio.voice.src);
 
       pipeline
         .outputOptions(["-pix_fmt yuv420p"])
