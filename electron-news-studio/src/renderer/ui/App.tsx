@@ -33,6 +33,14 @@ declare global {
   }
 }
 
+// Helper function to format time in MM:SS
+function formatTime(seconds: number): string {
+  if (!isFinite(seconds)) return '0:00';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
 const defaultProj: Project = {
   fps: 24,
   width: 1920,
@@ -73,8 +81,13 @@ export default function App() {
   const [dragOverClipId, setDragOverClipId] = useState<string | null>(null);
   const [timelineZoom, setTimelineZoom] = useState<number>(1); // 0.5x to 2x
   const [playheadPosition, setPlayheadPosition] = useState<number>(0); // 0-100%
+  const [isDraggingPlayhead, setIsDraggingPlayhead] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'media' | 'settings'>('media');
+  const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [currentTime, setCurrentTime] = useState<number>(0);
+  const videoRef = React.useRef<HTMLVideoElement>(null);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('landscape');
   const [resolutionPreset, setResolutionPreset] = useState<ResolutionPreset>('1080p');
   const [exportProgress, setExportProgress] = useState<{ percent: number; timemark: string } | null>(null);
@@ -225,6 +238,22 @@ export default function App() {
     setDragOverClipId(null);
     showToast('success', 'Clip reordered');
   }, [setP, showToast]);
+
+  // Playhead scrubbing handlers
+  const handlePlayheadMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingPlayhead(true);
+  }, []);
+
+  const handleTimelineClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const rect = target.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = (x / rect.offsetWidth) * 100;
+    const clampedPercent = Math.max(0, Math.min(100, percent / timelineZoom));
+    setPlayheadPosition(clampedPercent);
+  }, [timelineZoom]);
 
   const handleDragOver = (e: React.DragEvent, zone: string) => {
     e.preventDefault();
@@ -428,6 +457,68 @@ export default function App() {
     }
   }, []);
 
+  // Theme management
+  useEffect(() => {
+    // Load theme from localStorage on mount
+    const savedTheme = localStorage.getItem('theme') as 'dark' | 'light' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, []);
+
+  useEffect(() => {
+    // Apply theme to document
+    document.documentElement.setAttribute('data-theme', theme);
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = useCallback(() => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+    showToast('info', `Switched to ${theme === 'dark' ? 'light' : 'dark'} mode`);
+  }, [theme, showToast]);
+
+  // Video preview controls
+  const togglePlayPause = useCallback(() => {
+    if (!videoRef.current) return;
+
+    if (isPlaying) {
+      videoRef.current.pause();
+      setIsPlaying(false);
+    } else {
+      videoRef.current.play().catch(e => {
+        console.error('Play error:', e);
+        showToast('error', 'Failed to play video');
+      });
+      setIsPlaying(true);
+    }
+  }, [isPlaying, showToast]);
+
+  const handleVideoTimeUpdate = useCallback(() => {
+    if (!videoRef.current) return;
+    setCurrentTime(videoRef.current.currentTime);
+
+    // Update playhead position based on video time
+    const duration = videoRef.current.duration;
+    if (duration > 0) {
+      const percent = (videoRef.current.currentTime / duration) * 100;
+      setPlayheadPosition(percent);
+    }
+  }, []);
+
+  const handleVideoEnded = useCallback(() => {
+    setIsPlaying(false);
+    setPlayheadPosition(0);
+    if (videoRef.current) {
+      videoRef.current.currentTime = 0;
+    }
+  }, []);
+
+  const seekVideo = useCallback((time: number) => {
+    if (!videoRef.current) return;
+    videoRef.current.currentTime = time;
+    setCurrentTime(time);
+  }, []);
+
   // Listen to export progress
   useEffect(() => {
     if (!window.electronAPI?.onExportProgress) return;
@@ -438,6 +529,34 @@ export default function App() {
 
     return cleanup;
   }, []);
+
+  // Playhead dragging
+  useEffect(() => {
+    if (!isDraggingPlayhead) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const timeline = document.querySelector('.track-content') as HTMLElement;
+      if (!timeline) return;
+
+      const rect = timeline.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const percent = (x / rect.offsetWidth) * 100;
+      const clampedPercent = Math.max(0, Math.min(100, percent / timelineZoom));
+      setPlayheadPosition(clampedPercent);
+    };
+
+    const handleMouseUp = () => {
+      setIsDraggingPlayhead(false);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDraggingPlayhead, timelineZoom]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -746,17 +865,48 @@ export default function App() {
       <div className="preview-section">
         <div className="preview-container">
           <div className="preview-video">
-            <div style={{textAlign: 'center', padding: '40px'}}>
-              <p style={{fontSize: '20px', marginBottom: '12px', opacity: 0.9}}>📹 Video Preview</p>
-              <p style={{fontSize: '14px', opacity: 0.6}}>
-                {t.intro ? 'Intro • ' : ''}
-                {t.video.length > 0 ? `${t.video.length} clip${t.video.length > 1 ? 's' : ''} ` : 'No clips'}
-                {t.outro ? ' • Outro' : ''}
-              </p>
-              <p style={{fontSize: '12px', opacity: 0.5, marginTop: '20px'}}>
-                {p.width} × {p.height} @ {p.fps}fps
-              </p>
-            </div>
+            {t.video.length > 0 && t.video[0].src ? (
+              <>
+                <video
+                  ref={videoRef}
+                  src={t.video[0].src}
+                  onTimeUpdate={handleVideoTimeUpdate}
+                  onEnded={handleVideoEnded}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    objectFit: 'contain',
+                    borderRadius: '12px'
+                  }}
+                />
+                <div className="video-controls">
+                  <button className="btn-video-control" onClick={togglePlayPause} title={isPlaying ? 'Pause' : 'Play'}>
+                    {isPlaying ? '⏸️' : '▶️'}
+                  </button>
+                  <span className="video-time">
+                    {formatTime(currentTime)} / {videoRef.current ? formatTime(videoRef.current.duration || 0) : '0:00'}
+                  </span>
+                  <button className="btn-video-control" onClick={() => seekVideo(0)} title="Restart">
+                    ⏮️
+                  </button>
+                </div>
+              </>
+            ) : (
+              <div style={{textAlign: 'center', padding: '40px'}}>
+                <p style={{fontSize: '20px', marginBottom: '12px', opacity: 0.9}}>📹 Video Preview</p>
+                <p style={{fontSize: '14px', opacity: 0.6}}>
+                  {t.intro ? 'Intro • ' : ''}
+                  {t.video.length > 0 ? `${t.video.length} clip${t.video.length > 1 ? 's' : ''} ` : 'No clips'}
+                  {t.outro ? ' • Outro' : ''}
+                </p>
+                <p style={{fontSize: '12px', opacity: 0.5, marginTop: '20px'}}>
+                  {p.width} × {p.height} @ {p.fps}fps
+                </p>
+                <p style={{fontSize: '12px', opacity: 0.4, marginTop: '12px'}}>
+                  Add a video clip to see preview
+                </p>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -790,6 +940,12 @@ export default function App() {
 
         <button className="btn-load" onClick={loadProject} title="Load project">
           📂 Load
+        </button>
+
+        <div className="toolbar-divider"></div>
+
+        <button className="btn-theme" onClick={toggleTheme} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>
+          {theme === 'dark' ? '☀️' : '🌙'} {theme === 'dark' ? 'Light' : 'Dark'}
         </button>
 
         <div className="toolbar-divider"></div>
@@ -972,9 +1128,18 @@ export default function App() {
               </div>
               <div className="track-label-subtitle">Layer 1</div>
             </div>
-            <div className="track-content" style={{transformOrigin: 'left', transform: `scaleX(${timelineZoom})`, position: 'relative'}}>
+            <div
+              className="track-content"
+              style={{transformOrigin: 'left', transform: `scaleX(${timelineZoom})`, position: 'relative', cursor: isDraggingPlayhead ? 'grabbing' : 'default'}}
+              onClick={handleTimelineClick}
+            >
               {/* Playhead */}
-              <div className="playhead" style={{left: `${playheadPosition}%`}} title={`Playhead: ${playheadPosition.toFixed(1)}%`} />
+              <div
+                className="playhead"
+                style={{left: `${playheadPosition}%`, cursor: isDraggingPlayhead ? 'grabbing' : 'grab'}}
+                title={`Playhead: ${playheadPosition.toFixed(1)}%`}
+                onMouseDown={handlePlayheadMouseDown}
+              />
 
               {/* Intro */}
               {t.intro?.src && (
