@@ -149,11 +149,15 @@ export function validateClipCount(count: number): ValidationResult {
 }
 
 export function validateProject(project: Project): ValidationResult {
-  // Check if has at least one video clip
-  if (!project.tracks.video || project.tracks.video.length === 0) {
+  // Check if has at least one video source (clip, intro, or outro)
+  const hasVideoClips = project.tracks.video && project.tracks.video.length > 0;
+  const hasIntro = !!project.tracks.intro?.src;
+  const hasOutro = !!project.tracks.outro?.src;
+
+  if (!hasVideoClips && !hasIntro && !hasOutro) {
     return {
       valid: false,
-      error: 'Project must have at least one video clip'
+      error: 'Project must have at least one video source (video clip, intro, or outro)'
     };
   }
 

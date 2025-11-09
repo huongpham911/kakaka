@@ -66,7 +66,7 @@ export function createExporter() {
 
     // Step 1: Process intro (if exists)
     if (hasIntro) {
-      const introDur = tracks.intro.duration || 3;
+      const introDur = Math.max(0.1, tracks.intro.duration || 3);
       vf.push(`[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${introDur},setpts=PTS-STARTPTS[intro]`);
     }
 
@@ -79,13 +79,13 @@ export function createExporter() {
     } else if (videoClips.length === 1) {
       // Single clip - simple case
       const clip = videoClips[0];
-      const clipDur = clip.duration || 5;
+      const clipDur = Math.max(0.1, clip.duration || 5);
       const idx = videoStartIdx;
       vf.push(`[${idx}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${clipDur},setpts=PTS-STARTPTS[main]`);
     } else {
       // Multiple clips with transitions
       videoClips.forEach((clip: any, i: number) => {
-        const clipDur = clip.duration || 5;
+        const clipDur = Math.max(0.1, clip.duration || 5);
         const idx = videoStartIdx + i;
         vf.push(`[${idx}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${clipDur},setpts=PTS-STARTPTS[v${i}]`);
       });
@@ -95,16 +95,17 @@ export function createExporter() {
       for (let i = 0; i < videoClips.length - 1; i++) {
         const clip = videoClips[i];
         const nextClip = videoClips[i + 1];
-        const transDur = (nextClip.transition?.duration || 1);
+        const clipDur = Math.max(0.1, clip.duration || 5);
+        // Limit transition duration to clip duration
+        const transDur = Math.min(nextClip.transition?.duration || 1, clipDur);
         const transType = nextClip.transition?.type || 'fade';
 
         const inputA = i === 0 ? `v${i}` : `t${i - 1}`;
         const inputB = `v${i + 1}`;
         const output = `t${i}`;
 
-        const clipDur = clip.duration || 5;
-        // Prevent negative offset
-        offset += Math.max(0, clipDur - transDur);
+        // Now offset is always positive
+        offset += clipDur - transDur;
 
         if (transType === 'none') {
           // No transition, just concat
@@ -121,7 +122,7 @@ export function createExporter() {
 
     // Step 3: Process outro (if exists)
     if (hasOutro) {
-      const outroDur = tracks.outro.duration || 3;
+      const outroDur = Math.max(0.1, tracks.outro.duration || 3);
       vf.push(`[${outroIdx}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${outroDur},setpts=PTS-STARTPTS[outro]`);
     }
 
@@ -184,11 +185,15 @@ export function createExporter() {
       // Properly escape FFmpeg drawtext special characters
       const textEsc = String(ticker.text)
         .replace(/\\/g, "\\\\\\\\")  // Escape backslash first
+        .replace(/\n/g, "\\n")       // Escape newlines
+        .replace(/\r/g, "")          // Remove carriage returns
+        .replace(/\t/g, " ")         // Replace tabs with spaces
         .replace(/:/g, "\\:")
         .replace(/'/g, "\\\\'")
         .replace(/\[/g, "\\[")
         .replace(/\]/g, "\\]")
-        .replace(/%/g, "\\%");
+        .replace(/%/g, "\\%")
+        .replace(/\x00/g, "");       // Remove null bytes
 
       // Direction formulas:
       // RTL (right to left): x=w-mod(t*speed, tw+w) - starts from right, moves left
@@ -296,33 +301,40 @@ export function createExporter() {
             try {
               // Parse timemark (format: HH:MM:SS.MS)
               const parts = progress.timemark.split(':');
-              if (parts.length === 3) {
-                const hours = parseFloat(parts[0]);
-                const minutes = parseFloat(parts[1]);
-                const seconds = parseFloat(parts[2]);
+              if (parts.length !== 3) return;
 
-                // Validate parsed values
-                if (!isNaN(hours) && !isNaN(minutes) && !isNaN(seconds)) {
-                  const currentTime = hours * 3600 + minutes * 60 + seconds;
+              const hours = parseFloat(parts[0]);
+              const minutes = parseFloat(parts[1]);
+              const seconds = parseFloat(parts[2]);
 
-                  // Calculate total duration accounting for transitions
-                  let totalDuration = (tracks.intro?.duration || 0) + (tracks.outro?.duration || 0);
+              // Validate parsed values (positive numbers only)
+              if (isNaN(hours) || isNaN(minutes) || isNaN(seconds) ||
+                  hours < 0 || minutes < 0 || seconds < 0) {
+                return; // Skip invalid timemark
+              }
 
-                  // Add main clips duration minus transition overlaps
-                  for (let i = 0; i < videoClips.length; i++) {
-                    const clipDur = videoClips[i].duration || 5;
-                    totalDuration += clipDur;
-                    // Subtract transition overlap (except for last clip)
-                    if (i < videoClips.length - 1) {
-                      const nextTransDur = videoClips[i + 1].transition?.duration || 1;
-                      totalDuration -= Math.min(nextTransDur, clipDur);
-                    }
-                  }
+              const currentTime = hours * 3600 + minutes * 60 + seconds;
 
-                  const percent = Math.min(100, Math.max(0, (currentTime / totalDuration) * 100));
-                  onProgress(percent, progress.timemark);
+              // Calculate total duration accounting for transitions
+              let totalDuration = (tracks.intro?.duration || 0) + (tracks.outro?.duration || 0);
+
+              // Add main clips duration minus transition overlaps
+              for (let i = 0; i < videoClips.length; i++) {
+                const clipDur = Math.max(0.1, videoClips[i].duration || 5);
+                totalDuration += clipDur;
+                // Subtract transition overlap (except for last clip)
+                if (i < videoClips.length - 1) {
+                  const nextTransDur = videoClips[i + 1].transition?.duration || 1;
+                  totalDuration -= Math.min(nextTransDur, clipDur);
                 }
               }
+
+              // Prevent division by zero
+              const percent = totalDuration > 0
+                ? Math.min(100, Math.max(0, (currentTime / totalDuration) * 100))
+                : 0;
+
+              onProgress(percent, progress.timemark);
             } catch (err) {
               console.error("Error parsing progress timemark:", err);
             }
