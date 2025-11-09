@@ -85,6 +85,7 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<'media' | 'settings'>('media');
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [selectedClips, setSelectedClips] = useState<string[]>([]);
+  const [copiedClips, setCopiedClips] = useState<VideoClip[]>([]);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isDraggingSeekbar, setIsDraggingSeekbar] = useState<boolean>(false);
@@ -209,6 +210,43 @@ export default function App() {
     showToast('info', `${selectedClips.length} clip${selectedClips.length > 1 ? 's' : ''} removed`);
     setSelectedClips([]);
   }, [selectedClips, showToast]);
+
+  // Copy selected clips
+  const copySelectedClips = useCallback(() => {
+    if (selectedClips.length === 0) {
+      showToast('warning', 'No clips selected to copy');
+      return;
+    }
+    const clipsToCopy = t.video.filter(c => selectedClips.includes(c.id));
+    setCopiedClips(clipsToCopy);
+    showToast('success', `${clipsToCopy.length} clip${clipsToCopy.length > 1 ? 's' : ''} copied`);
+  }, [selectedClips, t.video, showToast]);
+
+  // Paste copied clips
+  const pasteClips = useCallback(() => {
+    if (copiedClips.length === 0) {
+      showToast('warning', 'No clips in clipboard');
+      return;
+    }
+
+    // Create new clips with new IDs
+    const newClips: VideoClip[] = copiedClips.map(clip => ({
+      ...clip,
+      id: `clip-${Date.now()}-${Math.random()}`
+    }));
+
+    setP(s => ({
+      ...s,
+      tracks: {
+        ...s.tracks,
+        video: [...s.tracks.video, ...newClips]
+      }
+    }));
+
+    // Select the newly pasted clips
+    setSelectedClips(newClips.map(c => c.id));
+    showToast('success', `${newClips.length} clip${newClips.length > 1 ? 's' : ''} pasted`);
+  }, [copiedClips, showToast]);
 
   const updateVideoClip = useCallback((id: string, updates: Partial<VideoClip>) => {
     setP(s => ({
@@ -847,6 +885,16 @@ export default function App() {
               showToast('warning', 'Nothing to redo');
             }
             break;
+          case 'c':
+            e.preventDefault();
+            copySelectedClips();
+            showToast('info', 'Shortcut: Ctrl+C (Copy)');
+            break;
+          case 'v':
+            e.preventDefault();
+            pasteClips();
+            showToast('info', 'Shortcut: Ctrl+V (Paste)');
+            break;
         }
       }
 
@@ -871,7 +919,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClips, disabled, isExporting, activeTab, undo, redo, canUndo, canRedo, saveProject, loadProject, onExport, removeSelectedClips, showToast]);
+  }, [selectedClips, disabled, isExporting, activeTab, undo, redo, canUndo, canRedo, saveProject, loadProject, onExport, removeSelectedClips, copySelectedClips, pasteClips, showToast]);
 
   // Get selected clip for editing (first selected clip)
   const currentClip = selectedClips.length > 0 ? t.video.find(c => c.id === selectedClips[0]) : null;
