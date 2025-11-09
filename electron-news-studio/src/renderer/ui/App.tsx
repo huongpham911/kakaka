@@ -99,6 +99,8 @@ export default function App() {
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('landscape');
   const [resolutionPreset, setResolutionPreset] = useState<ResolutionPreset>('1080p');
   const [exportPreset, setExportPreset] = useState<string>('custom');
+  const [lastAutoSaveTime, setLastAutoSaveTime] = useState<Date | null>(null);
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(true);
   const [exportProgress, setExportProgress] = useState<{ percent: number; timemark: string } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -591,17 +593,25 @@ export default function App() {
 
   // Auto-save to localStorage
   useEffect(() => {
+    if (!autoSaveEnabled) return;
+
     const timer = setInterval(() => {
       try {
         localStorage.setItem(STORAGE_KEYS.AUTOSAVE, JSON.stringify(p));
-        console.log("Auto-saved to localStorage");
+        const now = new Date();
+        setLastAutoSaveTime(now);
+        console.log("Auto-saved to localStorage at", now.toLocaleTimeString());
+
+        // Show subtle toast notification
+        showToast('info', '💾 Auto-saved', 1000);
       } catch (e) {
         console.error("Auto-save error:", e);
+        showToast('error', 'Auto-save failed');
       }
     }, AUTOSAVE_INTERVAL);
 
     return () => clearInterval(timer);
-  }, [p]);
+  }, [p, autoSaveEnabled, showToast]);
 
   // Load auto-save on mount
   useEffect(() => {
@@ -1339,6 +1349,40 @@ export default function App() {
               <label>Color</label>
               <input value={t.frame?.color ?? "white@0.85"} onChange={e => { t.frame!.color = e.target.value; setP({ ...p }); }}
                 placeholder="white@0.85" disabled={!t.frame?.enable} />
+            </div>
+
+            {/* Auto-Backup */}
+            <div className="section">
+              <h3 className="section-title">💾 Auto-Backup</h3>
+              <div className="row">
+                <div style={{flex: 1}}>
+                  <label>Enable Auto-Save</label>
+                  <select value={autoSaveEnabled ? "1" : "0"} onChange={e => {
+                    const enabled = e.target.value === "1";
+                    setAutoSaveEnabled(enabled);
+                    showToast(enabled ? 'success' : 'warning', `Auto-save ${enabled ? 'enabled' : 'disabled'}`);
+                  }}>
+                    <option value="1">On</option>
+                    <option value="0">Off</option>
+                  </select>
+                </div>
+              </div>
+              {lastAutoSaveTime && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '8px',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  textAlign: 'center',
+                  opacity: 0.8
+                }}>
+                  Last saved: {lastAutoSaveTime.toLocaleTimeString()}
+                </div>
+              )}
+              <div className="hint" style={{marginTop: '8px', textAlign: 'center', fontSize: '11px'}}>
+                Auto-saves every {AUTOSAVE_INTERVAL / 1000}s to localStorage
+              </div>
             </div>
 
             {/* Export */}
