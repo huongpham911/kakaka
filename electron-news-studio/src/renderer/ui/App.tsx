@@ -38,15 +38,44 @@ const defaultProj: Project = {
   }
 };
 
+type AspectRatio = 'landscape' | 'portrait' | 'square';
+type ResolutionPreset = '720p' | '1080p' | '2k' | '4k';
+
 export default function App() {
   const [p, setP] = useState<Project>(defaultProj);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'media' | 'settings'>('media');
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
+  const [aspectRatio, setAspectRatio] = useState<AspectRatio>('landscape');
+  const [resolutionPreset, setResolutionPreset] = useState<ResolutionPreset>('1080p');
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
 
   const disabled = useMemo(() => t.video.length === 0 || !p.duration, [p]);
+
+  // Handle aspect ratio change
+  const handleAspectRatioChange = (ratio: AspectRatio) => {
+    setAspectRatio(ratio);
+    const resolutions = {
+      landscape: { '720p': [1280, 720], '1080p': [1920, 1080], '2k': [2560, 1440], '4k': [3840, 2160] },
+      portrait: { '720p': [720, 1280], '1080p': [1080, 1920], '2k': [1440, 2560], '4k': [2160, 3840] },
+      square: { '720p': [720, 720], '1080p': [1080, 1080], '2k': [1440, 1440], '4k': [2160, 2160] }
+    };
+    const [w, h] = resolutions[ratio][resolutionPreset];
+    setP(old => ({ ...old, width: w, height: h }));
+  };
+
+  // Handle resolution preset change
+  const handleResolutionChange = (preset: ResolutionPreset) => {
+    setResolutionPreset(preset);
+    const resolutions = {
+      landscape: { '720p': [1280, 720], '1080p': [1920, 1080], '2k': [2560, 1440], '4k': [3840, 2160] },
+      portrait: { '720p': [720, 1280], '1080p': [1080, 1920], '2k': [1440, 2560], '4k': [2160, 3840] },
+      square: { '720p': [720, 720], '1080p': [1080, 1080], '2k': [1440, 1440], '4k': [2160, 2160] }
+    };
+    const [w, h] = resolutions[aspectRatio][preset];
+    setP(old => ({ ...old, width: w, height: h }));
+  };
 
   // Video clip management
   const addVideoClip = (filePath: string) => {
@@ -392,6 +421,38 @@ export default function App() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* TOOLBAR SECTION - Between Preview and Timeline */}
+      <div className="toolbar-section">
+        <div className="toolbar-group">
+          <label>Tỉ lệ khung hình</label>
+          <select value={aspectRatio} onChange={e => handleAspectRatioChange(e.target.value as AspectRatio)}>
+            <option value="landscape">Ngang (16:9)</option>
+            <option value="portrait">Dọc (9:16)</option>
+            <option value="square">1:1</option>
+          </select>
+        </div>
+
+        <div className="toolbar-group">
+          <label>Độ phân giải</label>
+          <select value={resolutionPreset} onChange={e => handleResolutionChange(e.target.value as ResolutionPreset)}>
+            <option value="720p">720p</option>
+            <option value="1080p">1080p (Full HD)</option>
+            <option value="2k">2K</option>
+            <option value="4k">4K (Ultra HD)</option>
+          </select>
+        </div>
+
+        <div className="toolbar-divider"></div>
+
+        <button className="btn-preview" onClick={() => alert('Preview feature coming soon!')}>
+          👁️ Preview
+        </button>
+
+        <button className="btn-render" onClick={onExport} disabled={disabled}>
+          {disabled ? '⚠️ Add video' : '🎬 Render'}
+        </button>
       </div>
 
       {/* TIMELINE SECTION - Bottom Full Width */}
