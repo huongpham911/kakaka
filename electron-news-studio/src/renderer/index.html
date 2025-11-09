@@ -66,6 +66,90 @@
         border-radius:6px;
         word-break:break-all;
       }
+
+      /* Timeline clips */
+      .timeline-clips {
+        margin-top:12px;
+        display:flex;
+        flex-direction:column;
+        gap:8px;
+        max-height:400px;
+        overflow-y:auto;
+      }
+      .clip-item {
+        background:#0d1218;
+        border:1px solid #1f2a36;
+        border-radius:8px;
+        padding:10px;
+      }
+      .clip-header {
+        display:flex;
+        align-items:center;
+        gap:8px;
+        margin-bottom:8px;
+      }
+      .clip-number {
+        font-weight:600;
+        color:#2463eb;
+        font-size:14px;
+        min-width:30px;
+      }
+      .clip-filename {
+        flex:1;
+        font-size:12px;
+        opacity:0.85;
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+      }
+      .clip-actions {
+        display:flex;
+        gap:4px;
+      }
+      .btn-sm {
+        padding:4px 8px;
+        font-size:11px;
+        background:#1a2532;
+        border:1px solid #263545;
+        border-radius:4px;
+        color:#e9eef5;
+        cursor:pointer;
+        transition:all 0.15s;
+      }
+      .btn-sm:hover:not(:disabled) {
+        background:#263545;
+        border-color:#2463eb;
+      }
+      .btn-sm:disabled {
+        opacity:0.3;
+        cursor:not-allowed;
+      }
+      .btn-danger {
+        background:#3d1a1a;
+        border-color:#5a2a2a;
+      }
+      .btn-danger:hover:not(:disabled) {
+        background:#5a2a2a;
+        border-color:#d32f2f;
+      }
+      .clip-controls {
+        margin-top:8px;
+      }
+      .clip-row {
+        display:flex;
+        gap:8px;
+      }
+      .clip-row > div {
+        flex:1;
+      }
+      .clip-row label {
+        display:block;
+        margin-bottom:4px;
+      }
+      .clip-row input, .clip-row select {
+        margin:0;
+        width:100%;
+      }
     </style>
   </head>
   <body>

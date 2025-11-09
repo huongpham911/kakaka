@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import type { Project } from "../../shared/types";
+import type { Project, VideoClip, TransitionType } from "../../shared/types";
 
 declare global {
   interface Window { electronAPI?: { export: (p: Project) => Promise<string> } }
@@ -25,7 +25,41 @@ export default function App() {
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
 
-  const disabled = useMemo(() => !t.video[0]?.src || !p.duration, [p]);
+  const disabled = useMemo(() => t.video.length === 0 || !p.duration, [p]);
+
+  // Video clip management
+  const addVideoClip = (filePath: string) => {
+    const newClip: VideoClip = {
+      id: `clip-${Date.now()}`,
+      src: filePath,
+      duration: 5,
+      transition: { type: 'fade', duration: 1 }
+    };
+    setP(s => ({ ...s, tracks: { ...s.tracks, video: [...s.tracks.video, newClip] }}));
+  };
+
+  const removeVideoClip = (id: string) => {
+    setP(s => ({ ...s, tracks: { ...s.tracks, video: s.tracks.video.filter(c => c.id !== id) }}));
+  };
+
+  const updateVideoClip = (id: string, updates: Partial<VideoClip>) => {
+    setP(s => ({
+      ...s,
+      tracks: {
+        ...s.tracks,
+        video: s.tracks.video.map(c => c.id === id ? { ...c, ...updates } : c)
+      }
+    }));
+  };
+
+  const moveClip = (id: string, direction: 'up' | 'down') => {
+    const idx = t.video.findIndex(c => c.id === id);
+    if ((direction === 'up' && idx === 0) || (direction === 'down' && idx === t.video.length - 1)) return;
+    const newVideos = [...t.video];
+    const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+    [newVideos[idx], newVideos[newIdx]] = [newVideos[newIdx], newVideos[idx]];
+    setP(s => ({ ...s, tracks: { ...s.tracks, video: newVideos }}));
+  };
 
   const handleDragOver = (e: React.DragEvent, zone: string) => {
     e.preventDefault();
@@ -51,7 +85,7 @@ export default function App() {
 
     switch (type) {
       case 'video':
-        setP(s => ({ ...s, tracks: { ...s.tracks, video: [{ id: "v1", src: filePath, start: 0 }] }}));
+        addVideoClip(filePath);
         break;
       case 'logo':
         t.logo!.src = filePath;
@@ -86,28 +120,84 @@ export default function App() {
     <>
       <div className="panel">
         <div className="box">
-          <label>Main Video</label>
+          <strong>Timeline - Video Clips</strong>
           <div
             className={`dropzone ${dragOver === 'video' ? 'drag-over' : ''}`}
             onDragOver={(e) => handleDragOver(e, 'video')}
             onDragLeave={handleDragLeave}
             onDrop={(e) => handleDrop(e, 'video')}
           >
-            <input type="file" accept="video/*" onChange={e => {
-              const f = e.target.files?.[0]; if (!f) return;
-              setP(s => ({ ...s, tracks: { ...s.tracks, video: [{ id: "v1", src: (f as any).path ?? "", start:0 }] }}));
+            <input type="file" accept="video/*" multiple onChange={e => {
+              const files = e.target.files;
+              if (!files) return;
+              Array.from(files).forEach(f => addVideoClip((f as any).path ?? ""));
             }} />
-            {t.video[0]?.src && <div className="file-name">📹 {t.video[0].src.split('/').pop()}</div>}
-            <div className="drop-hint">Kéo thả video vào đây</div>
+            <div className="drop-hint">Kéo thả video vào đây hoặc chọn nhiều file</div>
           </div>
+
+          {/* Timeline clips list */}
+          <div className="timeline-clips">
+            {t.video.map((clip, idx) => (
+              <div key={clip.id} className="clip-item">
+                <div className="clip-header">
+                  <span className="clip-number">#{idx + 1}</span>
+                  <span className="clip-filename">📹 {clip.src.split('/').pop()}</span>
+                  <div className="clip-actions">
+                    <button className="btn-sm" onClick={() => moveClip(clip.id, 'up')} disabled={idx === 0}>↑</button>
+                    <button className="btn-sm" onClick={() => moveClip(clip.id, 'down')} disabled={idx === t.video.length - 1}>↓</button>
+                    <button className="btn-sm btn-danger" onClick={() => removeVideoClip(clip.id)}>✕</button>
+                  </div>
+                </div>
+                <div className="clip-controls">
+                  <div className="clip-row">
+                    <div>
+                      <label>Duration (s)</label>
+                      <input type="number" min="0.1" step="0.1" value={clip.duration || 5}
+                        onChange={e => updateVideoClip(clip.id, { duration: Number(e.target.value) })} />
+                    </div>
+                    <div>
+                      <label>Transition</label>
+                      <select value={clip.transition?.type || 'fade'}
+                        onChange={e => updateVideoClip(clip.id, {
+                          transition: { ...clip.transition, type: e.target.value as TransitionType, duration: clip.transition?.duration || 1 }
+                        })}>
+                        <option value="none">None</option>
+                        <option value="fade">Fade</option>
+                        <option value="fadeblack">Fade Black</option>
+                        <option value="wipeleft">Wipe Left</option>
+                        <option value="wiperight">Wipe Right</option>
+                        <option value="wipeup">Wipe Up</option>
+                        <option value="wipedown">Wipe Down</option>
+                        <option value="slideleft">Slide Left</option>
+                        <option value="slideright">Slide Right</option>
+                        <option value="slideup">Slide Up</option>
+                        <option value="slidedown">Slide Down</option>
+                        <option value="circlecrop">Circle Crop</option>
+                        <option value="circleopen">Circle Open</option>
+                        <option value="dissolve">Dissolve</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label>Trans. Duration (s)</label>
+                      <input type="number" min="0.1" max="3" step="0.1" value={clip.transition?.duration || 1}
+                        onChange={e => updateVideoClip(clip.id, {
+                          transition: { ...clip.transition, type: clip.transition?.type || 'fade', duration: Number(e.target.value) }
+                        })} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
           <div className="row">
             <div>
-              <label>Duration (s)</label>
-              <input type="number" value={p.duration} onChange={e => set("duration", Number(e.target.value||15))} />
+              <label>Project FPS</label>
+              <input type="number" value={p.fps} onChange={e => set("fps", Number(e.target.value||24))} />
             </div>
             <div>
-              <label>FPS</label>
-              <input type="number" value={p.fps} onChange={e => set("fps", Number(e.target.value||24))} />
+              <label>Output Duration (s)</label>
+              <input type="number" value={p.duration} onChange={e => set("duration", Number(e.target.value||15))} />
             </div>
           </div>
         </div>

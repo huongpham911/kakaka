@@ -20,24 +20,61 @@ export function createExporter() {
 
   async function exportProject(project: any): Promise<string> {
     const { width, height, fps, duration, tracks } = project;
-    const mainV = tracks.video?.[0]?.src;
-    if (!mainV) throw new Error("No main video track");
+    const videoClips = tracks.video || [];
+
+    if (videoClips.length === 0) throw new Error("No video clips in timeline");
 
     const out = path.resolve(process.cwd(), "output_news.mp4");
-    // Using system's ffmpeg installation
-    const cmd = ffmpeg().input(mainV);
-    let idx = 1;
-    let logoIdx = -1, bgmIdx = -1, voiceIdx = -1;
-
-    if (tracks.logo?.src)  { cmd.input(tracks.logo.src);  logoIdx  = idx++; }
-    if (tracks.audio?.bgm?.src)   { cmd.input(tracks.audio.bgm.src);   bgmIdx   = idx++; }
-    if (tracks.audio?.voice?.src) { cmd.input(tracks.audio.voice.src); voiceIdx = idx++; }
-
-    // Video chain
     const vf: string[] = [];
-    vf.push(`[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,setsar=1,format=yuv420p[base]`);
 
-    if (logoIdx >= 0) {
+    // Step 1: Build video timeline with transitions
+    let currentLabel = 'base';
+
+    if (videoClips.length === 1) {
+      // Single clip - simple case
+      const clip = videoClips[0];
+      const clipDur = clip.duration || 5;
+      vf.push(`[0:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${clipDur},setpts=PTS-STARTPTS[base]`);
+    } else {
+      // Multiple clips with transitions
+      videoClips.forEach((clip, i) => {
+        const clipDur = clip.duration || 5;
+        vf.push(`[${i}:v]scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,setsar=1,fps=${fps},trim=0:${clipDur},setpts=PTS-STARTPTS[v${i}]`);
+      });
+
+      // Apply transitions between clips
+      let offset = 0;
+      for (let i = 0; i < videoClips.length - 1; i++) {
+        const clip = videoClips[i];
+        const nextClip = videoClips[i + 1];
+        const transDur = (nextClip.transition?.duration || 1);
+        const transType = nextClip.transition?.type || 'fade';
+
+        const inputA = i === 0 ? `v${i}` : `t${i - 1}`;
+        const inputB = `v${i + 1}`;
+        const output = `t${i}`;
+
+        const clipDur = clip.duration || 5;
+        offset += clipDur - transDur;
+
+        if (transType === 'none') {
+          // No transition, just concat
+          vf.push(`[${inputA}][${inputB}]concat=n=2:v=1:a=0[${output}]`);
+        } else {
+          // Map transition type to xfade transition name
+          const xfadeType = mapTransitionType(transType);
+          vf.push(`[${inputA}][${inputB}]xfade=transition=${xfadeType}:duration=${transDur}:offset=${offset}[${output}]`);
+        }
+      }
+
+      currentLabel = `t${videoClips.length - 2}`;
+      vf.push(`[${currentLabel}]copy[base]`);
+    }
+
+    // Step 2: Apply logo overlay
+    let logoIdx = -1;
+    if (tracks.logo?.src) {
+      logoIdx = videoClips.length;
       const pos = posExpr(tracks.logo.pos || "top-right");
       const op  = tracks.logo.opacity ?? 0.9;
       const lsc = tracks.logo.scale ?? 220;
@@ -45,23 +82,29 @@ export function createExporter() {
         `[${logoIdx}:v]scale=${lsc}:-1,format=rgba,colorchannelmixer=aa=${op}[lg]`,
         `[base][lg]overlay=${pos.x}:${pos.y}:enable='between(t,${tracks.logo.start ?? 0},${tracks.logo.end ?? duration})'[v1]`
       );
+      currentLabel = 'v1';
     } else {
       vf.push(`[base]copy[v1]`);
+      currentLabel = 'v1';
     }
 
+    // Step 3: Apply frame border
     if (tracks.frame?.enable) {
       const t = tracks.frame.thickness ?? 12;
       const c = tracks.frame.color ?? "white@0.85";
       vf.push(
-        `[v1]drawbox=x=0:y=0:w=iw:h=${t}:t=fill:color=${c}[v2];` +
-        `[v2]drawbox=x=0:y=ih-${t}:w=iw:h=${t}:t=fill:color=${c}[v3];` +
-        `[v3]drawbox=x=0:y=0:w=${t}:h=ih:t=fill:color=${c}[v4];` +
+        `[${currentLabel}]drawbox=x=0:y=0:w=iw:h=${t}:t=fill:color=${c}[v2]`,
+        `[v2]drawbox=x=0:y=ih-${t}:w=iw:h=${t}:t=fill:color=${c}[v3]`,
+        `[v3]drawbox=x=0:y=0:w=${t}:h=ih:t=fill:color=${c}[v4]`,
         `[v4]drawbox=x=iw-${t}:y=0:w=${t}:h=ih:t=fill:color=${c}[v5]`
       );
+      currentLabel = 'v5';
     } else {
-      vf.push(`[v1]copy[v5]`);
+      vf.push(`[${currentLabel}]copy[v5]`);
+      currentLabel = 'v5';
     }
 
+    // Step 4: Apply ticker
     if (tracks.ticker?.text && tracks.ticker?.font) {
       const ty   = tracks.ticker.y ?? (height - 80);
       const spd  = tracks.ticker.speed ?? 250;
@@ -70,18 +113,25 @@ export function createExporter() {
       const box  = tracks.ticker.box ? `:box=1:boxcolor=black@0.55:boxborderw=20` : ``;
       const textEsc = String(tracks.ticker.text).replace(/:/g, "\\:").replace(/'/g, "\\\\'");
       vf.push(
-        `[v5]drawtext=fontfile='${tracks.ticker.font}':text='${textEsc}':fontsize=${size}:fontcolor=${col}` +
+        `[${currentLabel}]drawtext=fontfile='${tracks.ticker.font}':text='${textEsc}':fontsize=${size}:fontcolor=${col}` +
         `:x=w-mod(t*${spd}\\,tw+w):y=${ty}${box}[vout]`
       );
     } else {
-      vf.push(`[v5]copy[vout]`);
+      vf.push(`[${currentLabel}]copy[vout]`);
     }
 
-    // Audio chain
+    // Step 5: Audio chain
     const af: string[] = [];
+    let bgmIdx = -1, voiceIdx = -1;
+    let audioOffset = videoClips.length;
+    if (tracks.logo?.src) audioOffset++;
+
+    if (tracks.audio?.bgm?.src) bgmIdx = audioOffset++;
+    if (tracks.audio?.voice?.src) voiceIdx = audioOffset++;
+
     const aIns: string[] = [];
     if (voiceIdx >= 0) aIns.push(`${voiceIdx}:a`);
-    if (bgmIdx  >= 0) aIns.push(`${bgmIdx}:a`);
+    if (bgmIdx >= 0) aIns.push(`${bgmIdx}:a`);
 
     if (aIns.length === 0) {
       // no audio
@@ -95,14 +145,14 @@ export function createExporter() {
       const bGain = tracks.audio.bgm?.gain ?? -6;
       if (duck && voiceIdx >= 0 && bgmIdx >= 0) {
         af.push(
-          `[${bgmIdx}:a]volume=${asVolDb(bGain)}[bgm];` +
-          `[${voiceIdx}:a]volume=${asVolDb(vGain)}[vo];` +
+          `[${bgmIdx}:a]volume=${asVolDb(bGain)}[bgm]`,
+          `[${voiceIdx}:a]volume=${asVolDb(vGain)}[vo]`,
           `[bgm][vo]sidechaincompress=threshold=0.03:ratio=10:attack=5:release=200:makeup=4[aout]`
         );
       } else {
         af.push(
-          `[${bgmIdx}:a]volume=${asVolDb(bGain)}[bgm];` +
-          `[${voiceIdx}:a]volume=${asVolDb(vGain)}[vo];` +
+          `[${bgmIdx}:a]volume=${asVolDb(bGain)}[bgm]`,
+          `[${voiceIdx}:a]volume=${asVolDb(vGain)}[vo]`,
           `[bgm][vo]amix=inputs=2:dropout_transition=0:duration=longest,volume=1.0[aout]`
         );
       }
@@ -110,19 +160,22 @@ export function createExporter() {
 
     const filter = vf.concat(af).join(";");
 
+    // Build FFmpeg command
     return await new Promise<string>((resolve, reject) => {
-      const pipeline = ffmpeg()
-        .input(mainV)
-        .outputOptions(["-pix_fmt yuv420p", `-t ${duration}`])
-        .videoCodec("libx264")
-        .fps(fps);
+      const pipeline = ffmpeg();
 
-      // re-add external inputs (logo/audio) again for final chain
-      if (logoIdx >= 0) pipeline.input(tracks.logo.src);
-      if (bgmIdx  >= 0) pipeline.input(tracks.audio.bgm.src);
-      if (voiceIdx >= 0) pipeline.input(tracks.audio.voice.src);
+      // Add all video clips as inputs
+      videoClips.forEach(clip => pipeline.input(clip.src));
+
+      // Add logo, bgm, voice
+      if (tracks.logo?.src) pipeline.input(tracks.logo.src);
+      if (tracks.audio?.bgm?.src) pipeline.input(tracks.audio.bgm.src);
+      if (tracks.audio?.voice?.src) pipeline.input(tracks.audio.voice.src);
 
       pipeline
+        .outputOptions(["-pix_fmt yuv420p"])
+        .videoCodec("libx264")
+        .fps(fps)
         .complexFilter(filter)
         .map("[vout]");
 
@@ -133,6 +186,26 @@ export function createExporter() {
         .on("end", () => resolve(out))
         .on("error", reject);
     });
+  }
+
+  function mapTransitionType(type: string): string {
+    // Map our transition types to xfade transition names
+    const map: Record<string, string> = {
+      'fade': 'fade',
+      'fadeblack': 'fadeblack',
+      'wipeleft': 'wipeleft',
+      'wiperight': 'wiperight',
+      'wipeup': 'wipeup',
+      'wipedown': 'wipedown',
+      'slideleft': 'slideleft',
+      'slideright': 'slideright',
+      'slideup': 'slideup',
+      'slidedown': 'slidedown',
+      'circlecrop': 'circlecrop',
+      'circleopen': 'circleopen',
+      'dissolve': 'dissolve'
+    };
+    return map[type] || 'fade';
   }
 
   return { exportProject };

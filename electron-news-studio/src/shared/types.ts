@@ -1,3 +1,16 @@
+export type TransitionType = 'none' | 'fade' | 'fadeblack' | 'wipeleft' | 'wiperight' | 'wipeup' | 'wipedown' | 'slideleft' | 'slideright' | 'slideup' | 'slidedown' | 'circlecrop' | 'circleopen' | 'dissolve';
+
+export type VideoClip = {
+  id: string;
+  src: string;
+  duration?: number;
+  trim?: { start: number; end: number };
+  transition?: {
+    type: TransitionType;
+    duration: number; // in seconds
+  };
+};
+
 export type TrackItem = {
   id: string;
   src?: string;
@@ -13,7 +26,7 @@ export type Project = {
   height: number;
   duration: number;
   tracks: {
-    video: TrackItem[];
+    video: VideoClip[];
     logo?: { src: string; start?: number; end?: number; pos?: string; opacity?: number; scale?: number };
     ticker?: { text: string; font: string; size?: number; color?: string; y?: number; speed?: number; box?: boolean };
     frame?: { enable?: boolean; thickness?: number; color?: string };
