@@ -7,6 +7,8 @@ import {
   type AspectRatio,
   type ResolutionPreset
 } from "../../shared/constants";
+import { ToastContainer, type Toast, type ToastType } from "./Toast";
+import { ConfirmModal } from "./Modal";
 
 declare global {
   interface Window {
@@ -61,8 +63,35 @@ export default function App() {
   const [resolutionPreset, setResolutionPreset] = useState<ResolutionPreset>('1080p');
   const [exportProgress, setExportProgress] = useState<{ percent: number; timemark: string } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [toasts, setToasts] = useState<Toast[]>([]);
+  const [confirmModal, setConfirmModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
+
+  // Toast helpers
+  const showToast = (type: ToastType, message: string, duration?: number) => {
+    const id = `toast-${Date.now()}-${Math.random()}`;
+    const toast: Toast = { id, type, message, duration };
+    setToasts(prev => [...prev, toast]);
+  };
+
+  const removeToast = (id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ isOpen: true, title, message, onConfirm });
+  };
+
+  const closeConfirm = () => {
+    setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
+  };
 
   const disabled = useMemo(() => t.video.length === 0 || !p.duration, [p]);
 
@@ -170,7 +199,10 @@ export default function App() {
   };
 
   async function onExport() {
-    if (!window.electronAPI) { alert("No electronAPI. Run via Electron."); return; }
+    if (!window.electronAPI) {
+      showToast('error', 'No electronAPI. Run via Electron.');
+      return;
+    }
     try {
       setIsExporting(true);
       setExportProgress({ percent: 0, timemark: "00:00:00" });
@@ -179,20 +211,20 @@ export default function App() {
       setTimeout(() => {
         setIsExporting(false);
         setExportProgress(null);
-        alert("✅ Exported: " + out);
+        showToast('success', `Video exported successfully: ${out}`, 5000);
       }, 500);
     } catch (e: any) {
       console.error(e);
       setIsExporting(false);
       setExportProgress(null);
-      alert("Export error: " + e?.message);
+      showToast('error', `Export error: ${e?.message || 'Unknown error'}`);
     }
   }
 
   // Save project
   async function saveProject() {
     if (!window.electronAPI?.saveProject) {
-      alert("Save not available. Run via Electron.");
+      showToast('error', 'Save not available. Run via Electron.');
       return;
     }
     try {
@@ -200,18 +232,18 @@ export default function App() {
       const filePath = await window.electronAPI.saveProject(projectData);
       if (filePath) {
         localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, filePath);
-        alert("💾 Project saved: " + filePath);
+        showToast('success', `Project saved: ${filePath}`);
       }
     } catch (e: any) {
       console.error(e);
-      alert("Save error: " + e?.message);
+      showToast('error', `Save error: ${e?.message || 'Unknown error'}`);
     }
   }
 
   // Load project
   async function loadProject() {
     if (!window.electronAPI?.loadProject) {
-      alert("Load not available. Run via Electron.");
+      showToast('error', 'Load not available. Run via Electron.');
       return;
     }
     try {
@@ -220,11 +252,11 @@ export default function App() {
         const loadedProject = JSON.parse(result.data);
         setP(loadedProject);
         localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, result.path);
-        alert("📂 Project loaded: " + result.path);
+        showToast('success', `Project loaded: ${result.path}`);
       }
     } catch (e: any) {
       console.error(e);
-      alert("Load error: " + e?.message);
+      showToast('error', `Load error: ${e?.message || 'Unknown error'}`);
     }
   }
 
@@ -247,10 +279,18 @@ export default function App() {
     try {
       const autosaved = localStorage.getItem(STORAGE_KEYS.AUTOSAVE);
       if (autosaved) {
-        const shouldRestore = confirm("Found auto-saved project. Restore it?");
-        if (shouldRestore) {
-          setP(JSON.parse(autosaved));
-        }
+        showConfirm(
+          'Restore Auto-saved Project?',
+          'We found an auto-saved project from your last session. Would you like to restore it?',
+          () => {
+            try {
+              setP(JSON.parse(autosaved));
+              showToast('success', 'Project restored from auto-save');
+            } catch (e) {
+              showToast('error', 'Failed to restore auto-saved project');
+            }
+          }
+        );
       }
     } catch (e) {
       console.error("Failed to restore auto-save:", e);
@@ -548,7 +588,7 @@ export default function App() {
 
         <div className="toolbar-divider"></div>
 
-        <button className="btn-preview" onClick={() => alert('Preview feature coming soon!')}>
+        <button className="btn-preview" onClick={() => showToast('info', 'Preview feature coming soon!')}>
           👁️ Preview
         </button>
 
@@ -586,14 +626,7 @@ export default function App() {
             <button
               className="btn-add-track"
               onClick={() => {
-                const trackTypes = ['Video Track', 'Audio Track', 'Text/Ticker Track', 'Logo Track', 'Frame Track'];
-                const choice = prompt('Select track type to add:\n' + trackTypes.map((t, i) => `${i + 1}. ${t}`).join('\n') + '\n\nEnter number (1-5):');
-                if (choice) {
-                  const idx = parseInt(choice) - 1;
-                  if (idx >= 0 && idx < trackTypes.length) {
-                    alert(`Adding ${trackTypes[idx]}... (Feature coming soon!)`);
-                  }
-                }
+                showToast('info', 'Add Track feature coming soon! Currently all 5 layers are displayed by default.');
               }}
             >
               <span>➕</span>
@@ -766,6 +799,21 @@ export default function App() {
           </div>
         </div>
       </div>
+
+      {/* Toast Notifications */}
+      <ToastContainer toasts={toasts} onClose={removeToast} />
+
+      {/* Confirm Modal */}
+      <ConfirmModal
+        isOpen={confirmModal.isOpen}
+        onClose={closeConfirm}
+        onConfirm={confirmModal.onConfirm}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText="Restore"
+        cancelText="Skip"
+        type="info"
+      />
     </>
   );
 }
