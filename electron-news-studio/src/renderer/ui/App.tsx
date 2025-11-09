@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useCallback } from "react";
 import type { Project, VideoClip, TransitionType } from "../../shared/types";
 import {
   RESOLUTIONS,
@@ -19,6 +19,7 @@ import {
 } from "../../shared/validation";
 import { ToastContainer, type Toast, type ToastType } from "./Toast";
 import { ConfirmModal } from "./Modal";
+import { ClipEditor } from "./ClipEditor";
 
 declare global {
   interface Window {
@@ -85,23 +86,23 @@ export default function App() {
   const t = p.tracks;
 
   // Toast helpers
-  const showToast = (type: ToastType, message: string, duration?: number) => {
+  const showToast = useCallback((type: ToastType, message: string, duration?: number) => {
     const id = `toast-${Date.now()}-${Math.random()}`;
     const toast: Toast = { id, type, message, duration };
     setToasts(prev => [...prev, toast]);
-  };
+  }, []);
 
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts(prev => prev.filter(t => t.id !== id));
-  };
+  }, []);
 
-  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+  const showConfirm = useCallback((title: string, message: string, onConfirm: () => void) => {
     setConfirmModal({ isOpen: true, title, message, onConfirm });
-  };
+  }, []);
 
-  const closeConfirm = () => {
+  const closeConfirm = useCallback(() => {
     setConfirmModal({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-  };
+  }, []);
 
   const disabled = useMemo(() => t.video.length === 0 || !p.duration, [p]);
 
@@ -120,7 +121,7 @@ export default function App() {
   };
 
   // Video clip management
-  const addVideoClip = (filePath: string) => {
+  const addVideoClip = useCallback((filePath: string) => {
     // Validate file format
     const formatValidation = validateVideoFormat(filePath);
     if (!formatValidation.valid) {
@@ -128,31 +129,33 @@ export default function App() {
       return;
     }
 
-    // Validate clip count
-    const countValidation = validateClipCount(t.video.length + 1);
-    if (!countValidation.valid) {
-      showToast('warning', countValidation.error || 'Too many clips');
-      return;
-    }
+    // Validate clip count - use callback to get latest value
+    setP(s => {
+      const countValidation = validateClipCount(s.tracks.video.length + 1);
+      if (!countValidation.valid) {
+        showToast('warning', countValidation.error || 'Too many clips');
+        return s;
+      }
 
-    const newClip: VideoClip = {
-      id: `clip-${Date.now()}`,
-      src: filePath,
-      duration: 5,
-      transition: { type: 'fade', duration: 1 }
-    };
-    setP(s => ({ ...s, tracks: { ...s.tracks, video: [...s.tracks.video, newClip] }}));
-    setSelectedClip(newClip.id);
-    showToast('success', 'Video clip added successfully');
-  };
+      const newClip: VideoClip = {
+        id: `clip-${Date.now()}`,
+        src: filePath,
+        duration: 5,
+        transition: { type: 'fade', duration: 1 }
+      };
+      setSelectedClip(newClip.id);
+      showToast('success', 'Video clip added successfully');
+      return { ...s, tracks: { ...s.tracks, video: [...s.tracks.video, newClip] }};
+    });
+  }, [showToast]);
 
-  const removeVideoClip = (id: string) => {
+  const removeVideoClip = useCallback((id: string) => {
     setP(s => ({ ...s, tracks: { ...s.tracks, video: s.tracks.video.filter(c => c.id !== id) }}));
-    if (selectedClip === id) setSelectedClip(null);
+    setSelectedClip(prev => prev === id ? null : prev);
     showToast('info', 'Video clip removed');
-  };
+  }, [showToast]);
 
-  const updateVideoClip = (id: string, updates: Partial<VideoClip>) => {
+  const updateVideoClip = useCallback((id: string, updates: Partial<VideoClip>) => {
     setP(s => ({
       ...s,
       tracks: {
@@ -160,7 +163,7 @@ export default function App() {
         video: s.tracks.video.map(c => c.id === id ? { ...c, ...updates } : c)
       }
     }));
-  };
+  }, []);
 
   const moveClip = (id: string, direction: 'up' | 'down') => {
     const idx = t.video.findIndex(c => c.id === id);
@@ -383,6 +386,71 @@ export default function App() {
 
     return cleanup;
   }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const ctrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+      // Prevent shortcuts when typing in input fields
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) {
+        return;
+      }
+
+      if (ctrlOrCmd) {
+        switch (e.key.toLowerCase()) {
+          case 's':
+            e.preventDefault();
+            saveProject();
+            showToast('info', 'Shortcut: Ctrl+S (Save)');
+            break;
+          case 'o':
+            e.preventDefault();
+            loadProject();
+            showToast('info', 'Shortcut: Ctrl+O (Open)');
+            break;
+          case 'e':
+            e.preventDefault();
+            if (!disabled && !isExporting) {
+              onExport();
+              showToast('info', 'Shortcut: Ctrl+E (Export)');
+            }
+            break;
+          case 'z':
+            e.preventDefault();
+            showToast('info', 'Shortcut: Ctrl+Z (Undo) - Coming soon!');
+            break;
+          case 'y':
+            e.preventDefault();
+            showToast('info', 'Shortcut: Ctrl+Y (Redo) - Coming soon!');
+            break;
+        }
+      }
+
+      // Delete selected clip
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selectedClip) {
+          e.preventDefault();
+          removeVideoClip(selectedClip);
+        }
+      }
+
+      // Tab switching
+      if (e.key === '1' && ctrlOrCmd) {
+        e.preventDefault();
+        setActiveTab('media');
+      }
+      if (e.key === '2' && ctrlOrCmd) {
+        e.preventDefault();
+        setActiveTab('settings');
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedClip, disabled, isExporting, activeTab]);
 
   // Get selected clip for editing
   const currentClip = selectedClip ? t.video.find(c => c.id === selectedClip) : null;
