@@ -21,10 +21,56 @@ const defaultProj: Project = {
 
 export default function App() {
   const [p, setP] = useState<Project>(defaultProj);
+  const [dragOver, setDragOver] = useState<string | null>(null);
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
 
   const disabled = useMemo(() => !t.video[0]?.src || !p.duration, [p]);
+
+  const handleDragOver = (e: React.DragEvent, zone: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(zone);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(null);
+  };
+
+  const handleDrop = (e: React.DragEvent, type: 'video' | 'logo' | 'font' | 'bgm' | 'voice') => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragOver(null);
+
+    const file = e.dataTransfer.files?.[0];
+    if (!file) return;
+
+    const filePath = (file as any).path ?? file.name;
+
+    switch (type) {
+      case 'video':
+        setP(s => ({ ...s, tracks: { ...s.tracks, video: [{ id: "v1", src: filePath, start: 0 }] }}));
+        break;
+      case 'logo':
+        t.logo!.src = filePath;
+        setP({ ...p });
+        break;
+      case 'font':
+        t.ticker!.font = filePath;
+        setP({ ...p });
+        break;
+      case 'bgm':
+        t.audio!.bgm!.src = filePath;
+        setP({ ...p });
+        break;
+      case 'voice':
+        t.audio!.voice!.src = filePath;
+        setP({ ...p });
+        break;
+    }
+  };
 
   async function onExport() {
     if (!window.electronAPI) { alert("No electronAPI. Run via Electron."); return; }
@@ -41,10 +87,19 @@ export default function App() {
       <div className="panel">
         <div className="box">
           <label>Main Video</label>
-          <input type="file" accept="video/*" onChange={e => {
-            const f = e.target.files?.[0]; if (!f) return;
-            setP(s => ({ ...s, tracks: { ...s.tracks, video: [{ id: "v1", src: (f as any).path ?? "", start:0 }] }}));
-          }} />
+          <div
+            className={`dropzone ${dragOver === 'video' ? 'drag-over' : ''}`}
+            onDragOver={(e) => handleDragOver(e, 'video')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'video')}
+          >
+            <input type="file" accept="video/*" onChange={e => {
+              const f = e.target.files?.[0]; if (!f) return;
+              setP(s => ({ ...s, tracks: { ...s.tracks, video: [{ id: "v1", src: (f as any).path ?? "", start:0 }] }}));
+            }} />
+            {t.video[0]?.src && <div className="file-name">📹 {t.video[0].src.split('/').pop()}</div>}
+            <div className="drop-hint">Kéo thả video vào đây</div>
+          </div>
           <div className="row">
             <div>
               <label>Duration (s)</label>
@@ -59,11 +114,20 @@ export default function App() {
 
         <div className="box">
           <strong>Logo</strong>
-          <input type="file" accept="image/*" onChange={e => {
-            const f = e.target.files?.[0]; if (!f) return;
-            t.logo!.src = (f as any).path ?? "";
-            setP({ ...p });
-          }} />
+          <div
+            className={`dropzone ${dragOver === 'logo' ? 'drag-over' : ''}`}
+            onDragOver={(e) => handleDragOver(e, 'logo')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'logo')}
+          >
+            <input type="file" accept="image/*" onChange={e => {
+              const f = e.target.files?.[0]; if (!f) return;
+              t.logo!.src = (f as any).path ?? "";
+              setP({ ...p });
+            }} />
+            {t.logo?.src && <div className="file-name">🖼️ {t.logo.src.split('/').pop()}</div>}
+            <div className="drop-hint">Kéo thả logo vào đây</div>
+          </div>
           <div className="row">
             <div>
               <label>Position</label>
@@ -88,11 +152,20 @@ export default function App() {
           <strong>Ticker</strong>
           <textarea rows={3} value={t.ticker?.text ?? ""} onChange={e => { t.ticker!.text = e.target.value; setP({ ...p }); }} />
           <label>Font file (TTF/OTF)</label>
-          <input type="file" accept=".ttf,.otf" onChange={e => {
-            const f = e.target.files?.[0]; if (!f) return;
-            t.ticker!.font = (f as any).path ?? "";
-            setP({ ...p });
-          }} />
+          <div
+            className={`dropzone ${dragOver === 'font' ? 'drag-over' : ''}`}
+            onDragOver={(e) => handleDragOver(e, 'font')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'font')}
+          >
+            <input type="file" accept=".ttf,.otf" onChange={e => {
+              const f = e.target.files?.[0]; if (!f) return;
+              t.ticker!.font = (f as any).path ?? "";
+              setP({ ...p });
+            }} />
+            {t.ticker?.font && <div className="file-name">🔤 {t.ticker.font.split('/').pop()}</div>}
+            <div className="drop-hint">Kéo thả font vào đây</div>
+          </div>
           <div className="row">
             <div><label>Size</label><input type="number" value={t.ticker?.size ?? 48} onChange={e => { t.ticker!.size = Number(e.target.value||48); setP({ ...p }); }} /></div>
             <div><label>Y</label><input type="number" value={t.ticker?.y ?? 1000} onChange={e => { t.ticker!.y = Number(e.target.value||1000); setP({ ...p }); }} /></div>
@@ -116,11 +189,29 @@ export default function App() {
         <div className="box">
           <strong>Audio</strong>
           <label>Background Music</label>
-          <input type="file" accept="audio/*" onChange={e => { const f=e.target.files?.[0]; if(!f) return; t.audio!.bgm!.src=(f as any).path??""; setP({ ...p }); }} />
+          <div
+            className={`dropzone ${dragOver === 'bgm' ? 'drag-over' : ''}`}
+            onDragOver={(e) => handleDragOver(e, 'bgm')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'bgm')}
+          >
+            <input type="file" accept="audio/*" onChange={e => { const f=e.target.files?.[0]; if(!f) return; t.audio!.bgm!.src=(f as any).path??""; setP({ ...p }); }} />
+            {t.audio?.bgm?.src && <div className="file-name">🎵 {t.audio.bgm.src.split('/').pop()}</div>}
+            <div className="drop-hint">Kéo thả BGM vào đây</div>
+          </div>
           <label>Gain BGM (dB)</label>
           <input type="number" value={t.audio?.bgm?.gain ?? -6} onChange={e => { t.audio!.bgm!.gain = Number(e.target.value||-6); setP({ ...p }); }} />
           <label>Voice</label>
-          <input type="file" accept="audio/*" onChange={e => { const f=e.target.files?.[0]; if(!f) return; t.audio!.voice!.src=(f as any).path??""; setP({ ...p }); }} />
+          <div
+            className={`dropzone ${dragOver === 'voice' ? 'drag-over' : ''}`}
+            onDragOver={(e) => handleDragOver(e, 'voice')}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, 'voice')}
+          >
+            <input type="file" accept="audio/*" onChange={e => { const f=e.target.files?.[0]; if(!f) return; t.audio!.voice!.src=(f as any).path??""; setP({ ...p }); }} />
+            {t.audio?.voice?.src && <div className="file-name">🎤 {t.audio.voice.src.split('/').pop()}</div>}
+            <div className="drop-hint">Kéo thả voice vào đây</div>
+          </div>
           <div className="row">
             <div><label>Gain Voice (dB)</label><input type="number" value={t.audio?.voice?.gain ?? 0} onChange={e => { t.audio!.voice!.gain = Number(e.target.value||0); setP({ ...p }); }} /></div>
             <div><label>Duck BGM</label><select value={t.audio?.voice?.duck_bgm ? "1":"0"} onChange={e => { t.audio!.voice!.duck_bgm = e.target.value==="1"; setP({ ...p }); }}><option value="1">On</option><option value="0">Off</option></select></div>

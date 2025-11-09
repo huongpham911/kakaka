@@ -18,6 +18,54 @@
       .row > * { flex:1; }
       .hint { font-size:12px; opacity:.7; margin-bottom:12px; }
       .box { padding:10px; border:1px dashed #2b3b4d; border-radius:10px; margin-bottom:12px;}
+
+      /* Dropzone styles */
+      .dropzone {
+        position: relative;
+        padding:12px;
+        border:2px dashed #2b3b4d;
+        border-radius:8px;
+        margin:6px 0 12px;
+        background:#0f141a;
+        transition: all 0.2s ease;
+        min-height:60px;
+        display:flex;
+        flex-direction:column;
+        gap:6px;
+      }
+      .dropzone input[type="file"] {
+        margin:0;
+        padding:6px;
+        font-size:13px;
+        background:#141a24;
+        border:1px solid #1f2a36;
+      }
+      .dropzone.drag-over {
+        border-color:#2463eb;
+        background:#0d1520;
+        border-style:solid;
+        box-shadow: 0 0 0 3px rgba(36,99,235,0.1);
+      }
+      .drop-hint {
+        font-size:11px;
+        opacity:0.5;
+        text-align:center;
+        margin:4px 0 0;
+        pointer-events:none;
+      }
+      .dropzone.drag-over .drop-hint {
+        opacity:1;
+        color:#2463eb;
+        font-weight:500;
+      }
+      .file-name {
+        font-size:12px;
+        opacity:0.75;
+        padding:4px 8px;
+        background:#1a2332;
+        border-radius:6px;
+        word-break:break-all;
+      }
     </style>
   </head>
   <body>
