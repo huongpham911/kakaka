@@ -20,6 +20,7 @@ import {
 import { ToastContainer, type Toast, type ToastType } from "./Toast";
 import { ConfirmModal } from "./Modal";
 import { ClipEditor } from "./ClipEditor";
+import { useHistory } from "../hooks/useHistory";
 
 declare global {
   interface Window {
@@ -66,7 +67,7 @@ const defaultProj: Project = {
 };
 
 export default function App() {
-  const [p, setP] = useState<Project>(defaultProj);
+  const { state: p, setState: setP, undo, redo, canUndo, canRedo } = useHistory<Project>(defaultProj);
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'media' | 'settings'>('media');
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
@@ -420,11 +421,21 @@ export default function App() {
             break;
           case 'z':
             e.preventDefault();
-            showToast('info', 'Shortcut: Ctrl+Z (Undo) - Coming soon!');
+            if (canUndo) {
+              undo();
+              showToast('info', 'Undo');
+            } else {
+              showToast('warning', 'Nothing to undo');
+            }
             break;
           case 'y':
             e.preventDefault();
-            showToast('info', 'Shortcut: Ctrl+Y (Redo) - Coming soon!');
+            if (canRedo) {
+              redo();
+              showToast('info', 'Redo');
+            } else {
+              showToast('warning', 'Nothing to redo');
+            }
             break;
         }
       }
@@ -450,7 +461,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClip, disabled, isExporting, activeTab]);
+  }, [selectedClip, disabled, isExporting, activeTab, undo, redo, canUndo, canRedo, saveProject, loadProject, onExport, removeVideoClip, showToast]);
 
   // Get selected clip for editing
   const currentClip = selectedClip ? t.video.find(c => c.id === selectedClip) : null;
