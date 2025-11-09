@@ -895,6 +895,61 @@ export default function App() {
             pasteClips();
             showToast('info', 'Shortcut: Ctrl+V (Paste)');
             break;
+          case 'a':
+            e.preventDefault();
+            if (t.video.length > 0) {
+              setSelectedClips(t.video.map(c => c.id));
+              showToast('info', `All ${t.video.length} clips selected`);
+            }
+            break;
+        }
+      }
+
+      // Space: Play/Pause video
+      if (e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        togglePlayPause();
+      }
+
+      // Escape: Clear selection or close menus
+      if (e.key === 'Escape') {
+        if (selectedClips.length > 0) {
+          setSelectedClips([]);
+          showToast('info', 'Selection cleared');
+        }
+        if (showRecentMenu) {
+          setShowRecentMenu(false);
+        }
+      }
+
+      // Arrow keys: Seek video
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        if (videoRef.current) {
+          e.preventDefault();
+          const seekAmount = e.shiftKey ? 10 : 5; // Shift for larger jumps
+          const newTime = e.key === 'ArrowLeft'
+            ? Math.max(0, currentTime - seekAmount)
+            : Math.min(videoRef.current.duration || 0, currentTime + seekAmount);
+          seekVideo(newTime);
+          showToast('info', `${e.key === 'ArrowLeft' ? '⏪' : '⏩'} ${seekAmount}s`);
+        }
+      }
+
+      // Home/End: Go to start/end
+      if (e.key === 'Home') {
+        e.preventDefault();
+        if (videoRef.current) {
+          seekVideo(0);
+          setPlayheadPosition(0);
+          showToast('info', 'Jump to start');
+        }
+      }
+      if (e.key === 'End') {
+        e.preventDefault();
+        if (videoRef.current && videoRef.current.duration) {
+          seekVideo(videoRef.current.duration);
+          setPlayheadPosition(100);
+          showToast('info', 'Jump to end');
         }
       }
 
@@ -919,7 +974,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedClips, disabled, isExporting, activeTab, undo, redo, canUndo, canRedo, saveProject, loadProject, onExport, removeSelectedClips, copySelectedClips, pasteClips, showToast]);
+  }, [selectedClips, disabled, isExporting, activeTab, undo, redo, canUndo, canRedo, saveProject, loadProject, onExport, removeSelectedClips, copySelectedClips, pasteClips, showToast, t.video, togglePlayPause, currentTime, seekVideo, showRecentMenu, videoRef]);
 
   // Get selected clip for editing (first selected clip)
   const currentClip = selectedClips.length > 0 ? t.video.find(c => c.id === selectedClips[0]) : null;
