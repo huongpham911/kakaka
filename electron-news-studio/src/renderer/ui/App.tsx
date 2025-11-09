@@ -35,10 +35,20 @@ declare global {
 
 // Helper function to format time in MM:SS
 function formatTime(seconds: number): string {
-  if (!isFinite(seconds)) return '0:00';
+  if (!isFinite(seconds) || seconds < 0) return '0:00';
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
+}
+
+// Helper function to safely get file path from File object
+function getFilePath(file: File): string {
+  // In Electron, File objects may have a 'path' property
+  // In browser context, we use the name instead
+  if ('path' in file && typeof file.path === 'string') {
+    return file.path;
+  }
+  return file.name;
 }
 
 const defaultProj: Project = {
@@ -477,6 +487,9 @@ export default function App() {
 
     const target = e.currentTarget;
     const rect = target.getBoundingClientRect();
+    // Prevent division by zero
+    if (rect.width <= 0) return;
+
     const x = e.clientX - rect.left;
     // rect.width already accounts for CSS transform scale
     const percent = (x / rect.width) * 100;
@@ -504,7 +517,7 @@ export default function App() {
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
 
-    const filePath = (file as any).path ?? file.name;
+    const filePath = getFilePath(file);
 
     // Validate file based on type
     let validation;
@@ -873,10 +886,16 @@ export default function App() {
   const handleSeekbarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!videoRef.current || !seekbarRef.current) return;
 
+    const duration = videoRef.current.duration;
+    // Prevent division by zero
+    if (!duration || duration <= 0) return;
+
     const rect = seekbarRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
+
     const x = e.clientX - rect.left;
     const percent = x / rect.width;
-    const time = percent * videoRef.current.duration;
+    const time = percent * duration;
 
     seekVideo(time);
   }, [seekVideo]);
@@ -889,10 +908,16 @@ export default function App() {
   const handleSeekbarMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!videoRef.current || !seekbarRef.current) return;
 
+    const duration = videoRef.current.duration;
+    // Prevent division by zero
+    if (!duration || duration <= 0) return;
+
     const rect = seekbarRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
+
     const x = e.clientX - rect.left;
     const percent = Math.max(0, Math.min(1, x / rect.width));
-    const time = percent * videoRef.current.duration;
+    const time = percent * duration;
 
     setSeekbarHoverTime(time);
   }, []);
@@ -997,6 +1022,9 @@ export default function App() {
       if (!timeline) return;
 
       const rect = timeline.getBoundingClientRect();
+      // Prevent division by zero
+      if (rect.width <= 0) return;
+
       const x = e.clientX - rect.left;
       // rect.width already accounts for CSS transform scale
       const percent = (x / rect.width) * 100;
@@ -1024,10 +1052,16 @@ export default function App() {
     const handleMouseMove = (e: MouseEvent) => {
       if (!videoRef.current || !seekbarRef.current) return;
 
+      const duration = videoRef.current.duration;
+      // Prevent division by zero
+      if (!duration || duration <= 0) return;
+
       const rect = seekbarRef.current.getBoundingClientRect();
+      if (rect.width <= 0) return;
+
       const x = e.clientX - rect.left;
       const percent = Math.max(0, Math.min(1, x / rect.width));
-      const time = percent * videoRef.current.duration;
+      const time = percent * duration;
 
       seekVideo(time);
     };
@@ -1368,7 +1402,7 @@ export default function App() {
                 onDrop={(e) => handleDrop(e, 'logo')}>
                 <input type="file" accept="image/*" onChange={e => {
                   const f = e.target.files?.[0]; if (!f) return;
-                  t.logo!.src = (f as any).path ?? "";
+                  t.logo!.src = getFilePath(f);
                   setP({ ...p });
                 }} />
                 {t.logo?.src && <div className="file-name">🖼️ {t.logo.src.split('/').pop()}</div>}
@@ -1401,7 +1435,7 @@ export default function App() {
                 onDrop={(e) => handleDrop(e, 'bgm')}>
                 <input type="file" accept="audio/*" onChange={e => {
                   const f=e.target.files?.[0]; if(!f) return;
-                  t.audio!.bgm!.src=(f as any).path??""; setP({ ...p });
+                  t.audio!.bgm!.src=getFilePath(f); setP({ ...p });
                 }} />
                 {t.audio?.bgm?.src && <div className="file-name">🎵 {t.audio.bgm.src.split('/').pop()}</div>}
                 <div className="drop-hint">Background music</div>
@@ -1417,7 +1451,7 @@ export default function App() {
                 onDrop={(e) => handleDrop(e, 'voice')}>
                 <input type="file" accept="audio/*" onChange={e => {
                   const f=e.target.files?.[0]; if(!f) return;
-                  t.audio!.voice!.src=(f as any).path??""; setP({ ...p });
+                  t.audio!.voice!.src=getFilePath(f); setP({ ...p });
                 }} />
                 {t.audio?.voice?.src && <div className="file-name">🎤 {t.audio.voice.src.split('/').pop()}</div>}
                 <div className="drop-hint">Voice over</div>
@@ -1450,7 +1484,7 @@ export default function App() {
                 onDrop={(e) => handleDrop(e, 'font')}>
                 <input type="file" accept=".ttf,.otf" onChange={e => {
                   const f = e.target.files?.[0]; if (!f) return;
-                  t.ticker!.font = (f as any).path ?? ""; setP({ ...p });
+                  t.ticker!.font = getFilePath(f); setP({ ...p });
                 }} />
                 {t.ticker?.font && <div className="file-name">🔤 {t.ticker.font.split('/').pop()}</div>}
                 <div className="drop-hint">TTF/OTF font</div>
@@ -1621,7 +1655,7 @@ export default function App() {
                   <div
                     className="video-seekbar-progress"
                     style={{
-                      width: `${videoRef.current && videoRef.current.duration > 0
+                      width: `${videoRef.current?.duration > 0
                         ? (currentTime / videoRef.current.duration) * 100
                         : 0}%`
                     }}
@@ -1629,7 +1663,7 @@ export default function App() {
                   <div
                     className="video-seekbar-handle"
                     style={{
-                      left: `${videoRef.current && videoRef.current.duration > 0
+                      left: `${videoRef.current?.duration > 0
                         ? (currentTime / videoRef.current.duration) * 100
                         : 0}%`
                     }}
@@ -1638,7 +1672,7 @@ export default function App() {
                     <div
                       className="video-seekbar-tooltip"
                       style={{
-                        left: `${videoRef.current && videoRef.current.duration > 0
+                        left: `${videoRef.current?.duration > 0
                           ? (seekbarHoverTime / videoRef.current.duration) * 100
                           : 0}%`
                       }}
@@ -2194,9 +2228,9 @@ export default function App() {
                   input.type = 'file';
                   input.accept = 'video/*';
                   input.multiple = true;
-                  input.onchange = (e: any) => {
-                    const files = e.target?.files;
-                    if (files) Array.from(files).forEach((f: any) => addVideoClip((f as any).path ?? ""));
+                  input.onchange = (e: Event) => {
+                    const files = (e.target as HTMLInputElement)?.files;
+                    if (files) Array.from(files).forEach((f: File) => addVideoClip(getFilePath(f)));
                   };
                   input.click();
                 }}>
