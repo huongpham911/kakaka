@@ -459,10 +459,26 @@ export default function App() {
       <div className="timeline-section">
         <div className="timeline-header">
           <span className="timeline-title">⏱️ Timeline Layers</span>
-          <div style={{display: 'flex', gap: '8px', alignItems: 'center'}}>
+          <div style={{display: 'flex', gap: '12px', alignItems: 'center'}}>
             <span style={{fontSize: '12px', opacity: 0.7}}>
               Total: {(t.intro?.duration || 0) + t.video.reduce((acc, c) => acc + (c.duration || 5), 0) + (t.outro?.duration || 0)}s
             </span>
+            <button
+              className="btn-add-track"
+              onClick={() => {
+                const trackTypes = ['Video Track', 'Audio Track', 'Text/Ticker Track', 'Logo Track', 'Frame Track'];
+                const choice = prompt('Select track type to add:\n' + trackTypes.map((t, i) => `${i + 1}. ${t}`).join('\n') + '\n\nEnter number (1-5):');
+                if (choice) {
+                  const idx = parseInt(choice) - 1;
+                  if (idx >= 0 && idx < trackTypes.length) {
+                    alert(`Adding ${trackTypes[idx]}... (Feature coming soon!)`);
+                  }
+                }
+              }}
+            >
+              <span>➕</span>
+              <span>Add Track</span>
+            </button>
           </div>
         </div>
 
