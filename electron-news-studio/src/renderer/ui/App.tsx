@@ -98,6 +98,7 @@ export default function App() {
   const seekbarRef = React.useRef<HTMLDivElement>(null);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('landscape');
   const [resolutionPreset, setResolutionPreset] = useState<ResolutionPreset>('1080p');
+  const [exportPreset, setExportPreset] = useState<string>('custom');
   const [exportProgress, setExportProgress] = useState<{ percent: number; timemark: string } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
@@ -146,6 +147,52 @@ export default function App() {
     setResolutionPreset(preset);
     const [w, h] = RESOLUTIONS[aspectRatio][preset];
     setP(old => ({ ...old, width: w, height: h }));
+  };
+
+  // Export presets for different platforms
+  const applyExportPreset = (preset: string) => {
+    setExportPreset(preset);
+    switch (preset) {
+      case 'youtube':
+        setP(old => ({ ...old, width: 1920, height: 1080, fps: 30 }));
+        setAspectRatio('landscape');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied YouTube preset (1920x1080, 30fps)');
+        break;
+      case 'instagram-post':
+        setP(old => ({ ...old, width: 1080, height: 1080, fps: 30 }));
+        setAspectRatio('square');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied Instagram Post preset (1080x1080, 30fps)');
+        break;
+      case 'instagram-story':
+        setP(old => ({ ...old, width: 1080, height: 1920, fps: 30 }));
+        setAspectRatio('portrait');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied Instagram Story preset (1080x1920, 30fps)');
+        break;
+      case 'tiktok':
+        setP(old => ({ ...old, width: 1080, height: 1920, fps: 30 }));
+        setAspectRatio('portrait');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied TikTok preset (1080x1920, 30fps)');
+        break;
+      case 'twitter':
+        setP(old => ({ ...old, width: 1280, height: 720, fps: 30 }));
+        setAspectRatio('landscape');
+        setResolutionPreset('720p');
+        showToast('success', 'Applied Twitter preset (1280x720, 30fps)');
+        break;
+      case 'facebook':
+        setP(old => ({ ...old, width: 1920, height: 1080, fps: 30 }));
+        setAspectRatio('landscape');
+        setResolutionPreset('1080p');
+        showToast('success', 'Applied Facebook preset (1920x1080, 30fps)');
+        break;
+      case 'custom':
+        showToast('info', 'Custom preset - adjust settings manually');
+        break;
+    }
   };
 
   // Video clip management
@@ -1435,6 +1482,21 @@ export default function App() {
 
       {/* TOOLBAR SECTION - Between Preview and Timeline */}
       <div className="toolbar-section">
+        <div className="toolbar-group">
+          <label>Export Preset</label>
+          <select value={exportPreset} onChange={e => applyExportPreset(e.target.value)} style={{fontWeight: '600'}}>
+            <option value="custom">Custom</option>
+            <option value="youtube">📺 YouTube</option>
+            <option value="instagram-post">📷 Instagram Post</option>
+            <option value="instagram-story">📱 Instagram Story</option>
+            <option value="tiktok">🎵 TikTok</option>
+            <option value="twitter">🐦 Twitter</option>
+            <option value="facebook">👥 Facebook</option>
+          </select>
+        </div>
+
+        <div className="toolbar-divider"></div>
+
         <div className="toolbar-group">
           <label>Tỉ lệ khung hình</label>
           <select value={aspectRatio} onChange={e => handleAspectRatioChange(e.target.value as AspectRatio)}>
