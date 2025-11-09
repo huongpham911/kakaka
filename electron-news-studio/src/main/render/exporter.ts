@@ -18,7 +18,10 @@ export function createExporter() {
     return Math.pow(10, db / 20).toFixed(3);
   }
 
-  async function exportProject(project: any): Promise<string> {
+  async function exportProject(
+    project: any,
+    onProgress?: (percent: number, timemark: string) => void
+  ): Promise<string> {
     const { width, height, fps, duration, tracks } = project;
     const videoClips = tracks.video || [];
     const hasIntro = !!tracks.intro?.src;
@@ -279,6 +282,27 @@ export function createExporter() {
 
       pipeline
         .save(out)
+        .on("progress", (progress: any) => {
+          if (onProgress && progress.timemark && duration) {
+            // Parse timemark (format: HH:MM:SS.MS)
+            const parts = progress.timemark.split(':');
+            if (parts.length === 3) {
+              const hours = parseFloat(parts[0]);
+              const minutes = parseFloat(parts[1]);
+              const seconds = parseFloat(parts[2]);
+              const currentTime = hours * 3600 + minutes * 60 + seconds;
+
+              // Calculate total duration including intro/outro
+              const totalDuration =
+                (tracks.intro?.duration || 0) +
+                duration +
+                (tracks.outro?.duration || 0);
+
+              const percent = Math.min(100, Math.max(0, (currentTime / totalDuration) * 100));
+              onProgress(percent, progress.timemark);
+            }
+          }
+        })
         .on("end", () => resolve(out))
         .on("error", reject);
     });

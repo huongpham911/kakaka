@@ -14,6 +14,7 @@ declare global {
       export: (p: Project) => Promise<string>;
       saveProject: (data: string) => Promise<string | null>;
       loadProject: () => Promise<{ path: string; data: string } | null>;
+      onExportProgress: (callback: (data: { percent: number; timemark: string }) => void) => () => void;
     }
   }
 }
@@ -58,6 +59,8 @@ export default function App() {
   const [selectedClip, setSelectedClip] = useState<string | null>(null);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('landscape');
   const [resolutionPreset, setResolutionPreset] = useState<ResolutionPreset>('1080p');
+  const [exportProgress, setExportProgress] = useState<{ percent: number; timemark: string } | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
 
@@ -169,10 +172,20 @@ export default function App() {
   async function onExport() {
     if (!window.electronAPI) { alert("No electronAPI. Run via Electron."); return; }
     try {
+      setIsExporting(true);
+      setExportProgress({ percent: 0, timemark: "00:00:00" });
       const out = await window.electronAPI.export(p);
-      alert("✅ Exported: " + out);
+      setExportProgress({ percent: 100, timemark: "Complete" });
+      setTimeout(() => {
+        setIsExporting(false);
+        setExportProgress(null);
+        alert("✅ Exported: " + out);
+      }, 500);
     } catch (e: any) {
-      console.error(e); alert("Export error: " + e?.message);
+      console.error(e);
+      setIsExporting(false);
+      setExportProgress(null);
+      alert("Export error: " + e?.message);
     }
   }
 
@@ -242,6 +255,17 @@ export default function App() {
     } catch (e) {
       console.error("Failed to restore auto-save:", e);
     }
+  }, []);
+
+  // Listen to export progress
+  useEffect(() => {
+    if (!window.electronAPI?.onExportProgress) return;
+
+    const cleanup = window.electronAPI.onExportProgress((data) => {
+      setExportProgress(data);
+    });
+
+    return cleanup;
   }, []);
 
   // Get selected clip for editing
@@ -528,10 +552,28 @@ export default function App() {
           👁️ Preview
         </button>
 
-        <button className="btn-render" onClick={onExport} disabled={disabled}>
-          {disabled ? '⚠️ Add video' : '🎬 Render'}
+        <button className="btn-render" onClick={onExport} disabled={disabled || isExporting}>
+          {isExporting ? '⏳ Rendering...' : disabled ? '⚠️ Add video' : '🎬 Render'}
         </button>
       </div>
+
+      {/* EXPORT PROGRESS BAR */}
+      {exportProgress && (
+        <div className="export-progress-container">
+          <div className="export-progress-info">
+            <span className="export-progress-label">
+              Rendering video... {exportProgress.percent.toFixed(1)}%
+            </span>
+            <span className="export-progress-time">{exportProgress.timemark}</span>
+          </div>
+          <div className="export-progress-bar">
+            <div
+              className="export-progress-fill"
+              style={{width: `${exportProgress.percent}%`}}
+            />
+          </div>
+        </div>
+      )}
 
       {/* TIMELINE SECTION - Bottom Full Width */}
       <div className="timeline-section">

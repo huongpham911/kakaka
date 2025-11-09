@@ -28,7 +28,12 @@ async function createWindow() {
   }
 
   const exporter = createExporter();
-  ipcMain.handle("export", (_e, project) => exporter.exportProject(project));
+  ipcMain.handle("export", async (event, project) => {
+    return await exporter.exportProject(project, (percent, timemark) => {
+      // Send progress update to renderer
+      event.sender.send("export-progress", { percent, timemark });
+    });
+  });
 
   // Save project dialog
   ipcMain.handle("save-project", async (_e, projectData: string) => {
