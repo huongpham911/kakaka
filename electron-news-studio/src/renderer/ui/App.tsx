@@ -873,6 +873,80 @@ export default function App() {
                 <input type="number" min="0.1" step="0.1" value={currentClip.duration || 5}
                   onChange={e => updateVideoClip(currentClip.id, { duration: Number(e.target.value) })} />
 
+                {/* Trim Controls */}
+                <details style={{marginTop: '12px', marginBottom: '12px'}}>
+                  <summary style={{cursor: 'pointer', fontSize: '13px', fontWeight: '600', marginBottom: '8px'}}>
+                    ✂️ Trim Clip
+                  </summary>
+                  <div className="row">
+                    <div>
+                      <label>Start Time (s)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={currentClip.trim?.start || 0}
+                        onChange={e => {
+                          const start = Math.max(0, Number(e.target.value));
+                          const end = currentClip.trim?.end || currentClip.duration || 5;
+                          if (start < end) {
+                            updateVideoClip(currentClip.id, {
+                              trim: { start, end }
+                            });
+                          }
+                        }}
+                      />
+                    </div>
+                    <div>
+                      <label>End Time (s)</label>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={currentClip.trim?.end || currentClip.duration || 5}
+                        onChange={e => {
+                          const end = Math.max(0, Number(e.target.value));
+                          const start = currentClip.trim?.start || 0;
+                          if (end > start) {
+                            updateVideoClip(currentClip.id, {
+                              trim: { start, end }
+                            });
+                          }
+                        }}
+                      />
+                    </div>
+                  </div>
+                  {currentClip.trim && (currentClip.trim.start > 0 || currentClip.trim.end < (currentClip.duration || 5)) && (
+                    <div style={{
+                      marginTop: '8px',
+                      padding: '8px',
+                      background: 'var(--bg-elevated)',
+                      borderRadius: '4px',
+                      fontSize: '12px'
+                    }}>
+                      <div style={{opacity: 0.8}}>
+                        Trimmed: {(currentClip.trim.end - currentClip.trim.start).toFixed(1)}s
+                        ({currentClip.trim.start.toFixed(1)}s → {currentClip.trim.end.toFixed(1)}s)
+                      </div>
+                      <button
+                        onClick={() => updateVideoClip(currentClip.id, { trim: undefined })}
+                        style={{
+                          marginTop: '6px',
+                          padding: '4px 8px',
+                          fontSize: '11px',
+                          background: 'var(--error)',
+                          color: 'white',
+                          border: 'none',
+                          borderRadius: '4px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Reset Trim
+                      </button>
+                    </div>
+                  )}
+                </details>
+
                 <label>Transition Type</label>
                 <select value={currentClip.transition?.type || 'fade'}
                   onChange={e => updateVideoClip(currentClip.id, {
@@ -1571,9 +1645,22 @@ export default function App() {
                     ...(dragOverClipId === clip.id && draggedClipId !== clip.id ? {borderColor: '#10b981', borderStyle: 'solid'} : {}),
                     cursor: 'grab'
                   }}>
-                  <div className="track-item-name">📹 Clip #{idx + 1}</div>
+                  <div className="track-item-name">
+                    📹 Clip #{idx + 1}
+                    {clip.trim && (clip.trim.start > 0 || clip.trim.end < (clip.duration || 5)) && (
+                      <span style={{marginLeft: '4px', fontSize: '10px', opacity: 0.7}}>✂️</span>
+                    )}
+                  </div>
                   <div className="track-item-info">
-                    {clip.duration || 5}s • {clip.transition?.type || 'fade'}
+                    {clip.trim ? (
+                      <>
+                        {(clip.trim.end - clip.trim.start).toFixed(1)}s (trimmed) • {clip.transition?.type || 'fade'}
+                      </>
+                    ) : (
+                      <>
+                        {clip.duration || 5}s • {clip.transition?.type || 'fade'}
+                      </>
+                    )}
                   </div>
                 </div>
               ))}
