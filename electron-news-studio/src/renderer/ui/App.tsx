@@ -873,6 +873,27 @@ export default function App() {
                 <input type="number" min="0.1" step="0.1" value={currentClip.duration || 5}
                   onChange={e => updateVideoClip(currentClip.id, { duration: Number(e.target.value) })} />
 
+                {/* Clip Info */}
+                <div style={{
+                  marginTop: '12px',
+                  padding: '8px',
+                  background: 'var(--bg-elevated)',
+                  borderRadius: '4px',
+                  fontSize: '11px',
+                  marginBottom: '12px'
+                }}>
+                  <div style={{opacity: 0.7, marginBottom: '4px'}}>Source File:</div>
+                  <div style={{
+                    fontFamily: 'monospace',
+                    fontSize: '10px',
+                    wordBreak: 'break-all',
+                    opacity: 0.9,
+                    lineHeight: '1.4'
+                  }}>
+                    {currentClip.src.split('/').pop() || currentClip.src.split('\\').pop() || currentClip.src}
+                  </div>
+                </div>
+
                 {/* Trim Controls */}
                 <details style={{marginTop: '12px', marginBottom: '12px'}}>
                   <summary style={{cursor: 'pointer', fontSize: '13px', fontWeight: '600', marginBottom: '8px'}}>
@@ -1629,41 +1650,60 @@ export default function App() {
               )}
 
               {/* Main Clips */}
-              {t.video.map((clip, idx) => (
-                <div key={clip.id}
-                  className="track-item"
-                  draggable
-                  onDragStart={(e) => handleClipDragStart(e, clip.id)}
-                  onDragOver={(e) => handleClipDragOver(e, clip.id)}
-                  onDragEnd={handleClipDragEnd}
-                  onDrop={(e) => handleClipDrop(e, clip.id)}
-                  onClick={() => setSelectedClip(clip.id)}
-                  title="Drag to reorder"
-                  style={{
-                    ...(selectedClip === clip.id ? {borderColor: '#3b82f6', background: '#212e42'} : {}),
-                    ...(draggedClipId === clip.id ? {opacity: 0.5} : {}),
-                    ...(dragOverClipId === clip.id && draggedClipId !== clip.id ? {borderColor: '#10b981', borderStyle: 'solid'} : {}),
-                    cursor: 'grab'
-                  }}>
-                  <div className="track-item-name">
-                    📹 Clip #{idx + 1}
-                    {clip.trim && (clip.trim.start > 0 || clip.trim.end < (clip.duration || 5)) && (
-                      <span style={{marginLeft: '4px', fontSize: '10px', opacity: 0.7}}>✂️</span>
-                    )}
+              {t.video.map((clip, idx) => {
+                const filename = clip.src.split('/').pop() || clip.src.split('\\').pop() || 'video';
+                const shortName = filename.length > 15 ? filename.substring(0, 12) + '...' : filename;
+                return (
+                  <div key={clip.id}
+                    className="track-item"
+                    draggable
+                    onDragStart={(e) => handleClipDragStart(e, clip.id)}
+                    onDragOver={(e) => handleClipDragOver(e, clip.id)}
+                    onDragEnd={handleClipDragEnd}
+                    onDrop={(e) => handleClipDrop(e, clip.id)}
+                    onClick={() => setSelectedClip(clip.id)}
+                    title={`${filename}\nDrag to reorder`}
+                    style={{
+                      ...(selectedClip === clip.id ? {borderColor: '#3b82f6', background: '#212e42'} : {}),
+                      ...(draggedClipId === clip.id ? {opacity: 0.5} : {}),
+                      ...(dragOverClipId === clip.id && draggedClipId !== clip.id ? {borderColor: '#10b981', borderStyle: 'solid'} : {}),
+                      cursor: 'grab',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '4px'
+                    }}>
+                    <div style={{display: 'flex', alignItems: 'center', justifyContent: 'space-between'}}>
+                      <div className="track-item-name" style={{fontSize: '11px'}}>
+                        📹 Clip #{idx + 1}
+                        {clip.trim && (clip.trim.start > 0 || clip.trim.end < (clip.duration || 5)) && (
+                          <span style={{marginLeft: '4px', fontSize: '10px', opacity: 0.7}}>✂️</span>
+                        )}
+                      </div>
+                    </div>
+                    <div style={{
+                      fontSize: '9px',
+                      opacity: 0.6,
+                      fontFamily: 'monospace',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis'
+                    }}>
+                      {shortName}
+                    </div>
+                    <div className="track-item-info" style={{fontSize: '10px'}}>
+                      {clip.trim ? (
+                        <>
+                          {(clip.trim.end - clip.trim.start).toFixed(1)}s • {clip.transition?.type || 'fade'}
+                        </>
+                      ) : (
+                        <>
+                          {clip.duration || 5}s • {clip.transition?.type || 'fade'}
+                        </>
+                      )}
+                    </div>
                   </div>
-                  <div className="track-item-info">
-                    {clip.trim ? (
-                      <>
-                        {(clip.trim.end - clip.trim.start).toFixed(1)}s (trimmed) • {clip.transition?.type || 'fade'}
-                      </>
-                    ) : (
-                      <>
-                        {clip.duration || 5}s • {clip.transition?.type || 'fade'}
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
+                );
+              })}
 
               {/* Add Video Button */}
               <div className={`track-item ${dragOver === 'video' ? 'drag-over' : ''}`}
