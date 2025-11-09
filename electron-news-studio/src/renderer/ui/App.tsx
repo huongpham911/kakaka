@@ -92,6 +92,7 @@ export default function App() {
   const [volume, setVolume] = useState<number>(1); // 0-1
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [volumeBeforeMute, setVolumeBeforeMute] = useState<number>(1);
+  const [playbackSpeed, setPlaybackSpeed] = useState<number>(1); // 0.25-2
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const seekbarRef = React.useRef<HTMLDivElement>(null);
   const [aspectRatio, setAspectRatio] = useState<AspectRatio>('landscape');
@@ -483,6 +484,15 @@ export default function App() {
         setVolume(vol);
       }
     }
+
+    // Load playback speed from localStorage
+    const savedSpeed = localStorage.getItem('playbackSpeed');
+    if (savedSpeed) {
+      const speed = parseFloat(savedSpeed);
+      if (!isNaN(speed) && speed >= 0.25 && speed <= 2) {
+        setPlaybackSpeed(speed);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -603,6 +613,21 @@ export default function App() {
     // Save volume to localStorage
     localStorage.setItem('volume', volume.toString());
   }, [volume]);
+
+  // Apply playback speed to video element
+  useEffect(() => {
+    if (videoRef.current) {
+      videoRef.current.playbackRate = playbackSpeed;
+    }
+    // Save playback speed to localStorage
+    localStorage.setItem('playbackSpeed', playbackSpeed.toString());
+  }, [playbackSpeed]);
+
+  // Handler for playback speed change
+  const handleSpeedChange = useCallback((newSpeed: number) => {
+    setPlaybackSpeed(newSpeed);
+    showToast('info', `Playback speed: ${newSpeed}x`);
+  }, [showToast]);
 
   // Listen to export progress
   useEffect(() => {
@@ -1060,6 +1085,25 @@ export default function App() {
                       title={`Volume: ${Math.round(volume * 100)}%`}
                     />
                     <span className="volume-percent">{Math.round(volume * 100)}%</span>
+                  </div>
+
+                  <div className="speed-control">
+                    <label className="speed-label">Speed:</label>
+                    <select
+                      value={playbackSpeed}
+                      onChange={(e) => handleSpeedChange(parseFloat(e.target.value))}
+                      className="speed-select"
+                      title="Playback speed"
+                    >
+                      <option value="0.25">0.25x</option>
+                      <option value="0.5">0.5x</option>
+                      <option value="0.75">0.75x</option>
+                      <option value="1">1x</option>
+                      <option value="1.25">1.25x</option>
+                      <option value="1.5">1.5x</option>
+                      <option value="1.75">1.75x</option>
+                      <option value="2">2x</option>
+                    </select>
                   </div>
                 </div>
               </>

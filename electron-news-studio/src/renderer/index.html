@@ -508,6 +508,47 @@
         text-align: right;
       }
 
+      /* Speed Controls */
+      .speed-control {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 12px;
+        padding-left: 12px;
+        border-left: 1px solid rgba(255, 255, 255, 0.2);
+      }
+      .speed-label {
+        font-size: 11px;
+        color: #c5d9f5;
+        margin: 0;
+      }
+      .speed-select {
+        background: rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+        color: #e9eef5;
+        font-size: 12px;
+        padding: 4px 8px;
+        cursor: pointer;
+        outline: none;
+        min-width: auto;
+        width: auto;
+        margin: 0;
+        transition: all 0.2s;
+      }
+      .speed-select:hover {
+        background: rgba(255, 255, 255, 0.15);
+        border-color: rgba(255, 255, 255, 0.3);
+      }
+      .speed-select:focus {
+        border-color: #2463eb;
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .speed-select option {
+        background: #1a2332;
+        color: #e9eef5;
+      }
+
       /* Video Seekbar */
       .video-seekbar {
         position: absolute;
