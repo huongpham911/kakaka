@@ -13,7 +13,7 @@ const defaultProj: Project = {
   tracks: {
     video: [],
     logo: { src: "", pos: "top-right", opacity: 0.9, scale: 220, start: 0 },
-    ticker: { text: "TIN NÓNG: Chữ chạy demo | ", font: "", size: 48, color: "white", y: 1000, speed: 250, box: true },
+    ticker: { text: "TIN NÓNG: Chữ chạy demo | ", font: "", size: 48, color: "white", y: 1000, speed: 250, box: true, direction: 'rtl' },
     frame: { enable: true, thickness: 12, color: "white@0.85" },
     audio: { bgm: { src: "", gain: -6 }, voice: { src: "", gain: 0, duck_bgm: true } }
   }
@@ -264,6 +264,15 @@ export default function App() {
           <div className="row">
             <div><label>Color</label><input value={t.ticker?.color ?? "white"} onChange={e => { t.ticker!.color = e.target.value; setP({ ...p }); }} /></div>
             <div><label>Box BG</label><select value={t.ticker?.box ? "1":"0"} onChange={e => { t.ticker!.box = e.target.value==="1"; setP({ ...p }); }}><option value="1">On</option><option value="0">Off</option></select></div>
+          </div>
+          <div className="row">
+            <div>
+              <label>Direction</label>
+              <select value={t.ticker?.direction ?? 'rtl'} onChange={e => { t.ticker!.direction = e.target.value as 'rtl' | 'ltr'; setP({ ...p }); }}>
+                <option value="rtl">← Phải sang Trái (RTL)</option>
+                <option value="ltr">→ Trái sang Phải (LTR)</option>
+              </select>
+            </div>
           </div>
         </div>
 

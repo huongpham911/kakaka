@@ -111,10 +111,19 @@ export function createExporter() {
       const size = tracks.ticker.size ?? 48;
       const col  = tracks.ticker.color ?? "white";
       const box  = tracks.ticker.box ? `:box=1:boxcolor=black@0.55:boxborderw=20` : ``;
+      const dir  = tracks.ticker.direction ?? 'rtl';
       const textEsc = String(tracks.ticker.text).replace(/:/g, "\\:").replace(/'/g, "\\\\'");
+
+      // Direction formulas:
+      // RTL (right to left): x=w-mod(t*speed, tw+w) - starts from right, moves left
+      // LTR (left to right): x=mod(t*speed, tw+w)-tw - starts from left, moves right
+      const xFormula = dir === 'rtl'
+        ? `w-mod(t*${spd}\\,tw+w)`
+        : `mod(t*${spd}\\,tw+w)-tw`;
+
       vf.push(
         `[${currentLabel}]drawtext=fontfile='${tracks.ticker.font}':text='${textEsc}':fontsize=${size}:fontcolor=${col}` +
-        `:x=w-mod(t*${spd}\\,tw+w):y=${ty}${box}[vout]`
+        `:x=${xFormula}:y=${ty}${box}[vout]`
       );
     } else {
       vf.push(`[${currentLabel}]copy[vout]`);

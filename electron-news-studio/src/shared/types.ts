@@ -28,7 +28,7 @@ export type Project = {
   tracks: {
     video: VideoClip[];
     logo?: { src: string; start?: number; end?: number; pos?: string; opacity?: number; scale?: number };
-    ticker?: { text: string; font: string; size?: number; color?: string; y?: number; speed?: number; box?: boolean };
+    ticker?: { text: string; font: string; size?: number; color?: string; y?: number; speed?: number; box?: boolean; direction?: 'rtl' | 'ltr' };
     frame?: { enable?: boolean; thickness?: number; color?: string };
     audio?: {
       bgm?: { src: string; gain?: number };
