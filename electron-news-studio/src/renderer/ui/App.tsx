@@ -47,6 +47,51 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+// Helper function to generate video thumbnail
+async function generateVideoThumbnail(videoPath: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.preload = 'metadata';
+    video.muted = true;
+    video.playsInline = true;
+
+    video.onloadeddata = () => {
+      // Seek to 1 second or 10% of duration, whichever is smaller
+      const seekTime = Math.min(1, video.duration * 0.1);
+      video.currentTime = seekTime;
+    };
+
+    video.onseeked = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = 320;
+        canvas.height = (320 / video.videoWidth) * video.videoHeight;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Could not get canvas context'));
+          return;
+        }
+
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        const thumbnail = canvas.toDataURL('image/jpeg', 0.7);
+        resolve(thumbnail);
+      } catch (err) {
+        reject(err);
+      } finally {
+        video.remove();
+      }
+    };
+
+    video.onerror = () => {
+      reject(new Error('Failed to load video'));
+      video.remove();
+    };
+
+    video.src = videoPath;
+  });
+}
+
 const defaultProj: Project = {
   fps: 24,
   width: 1920,
@@ -103,12 +148,21 @@ export default function App() {
   const [showRecentMenu, setShowRecentMenu] = useState<boolean>(false);
 
   // Media Libraries - Separate folders for each type
-  const [mediaImages, setMediaImages] = useState<string[]>([]); // For logos
-  const [mediaVideos, setMediaVideos] = useState<string[]>([]); // For timeline clips
-  const [mediaIntros, setMediaIntros] = useState<string[]>([]); // For intro videos
-  const [mediaOutros, setMediaOutros] = useState<string[]>([]); // For outro videos
-  const [mediaAudio, setMediaAudio] = useState<string[]>([]); // For BGM/Voice
-  const [mediaFonts, setMediaFonts] = useState<string[]>([]); // For ticker fonts
+  // MediaItem type to store path and thumbnail
+  type MediaItem = { path: string; thumbnail?: string };
+  const [mediaImages, setMediaImages] = useState<MediaItem[]>([]); // For logos
+  const [mediaVideos, setMediaVideos] = useState<MediaItem[]>([]); // For timeline clips
+  const [mediaIntros, setMediaIntros] = useState<MediaItem[]>([]); // For intro videos
+  const [mediaOutros, setMediaOutros] = useState<MediaItem[]>([]); // For outro videos
+  const [mediaAudio, setMediaAudio] = useState<string[]>([]); // For BGM/Voice (no thumbnails needed)
+  const [mediaFonts, setMediaFonts] = useState<string[]>([]); // For ticker fonts (no thumbnails needed)
+
+  // Preview modal state
+  const [previewModal, setPreviewModal] = useState<{ isOpen: boolean; type: 'image' | 'video'; src: string }>({
+    isOpen: false,
+    type: 'image',
+    src: ''
+  });
 
   // Logo drag state (for dragging logos on preview)
   const [draggedLogoId, setDraggedLogoId] = useState<string | null>(null);
@@ -314,12 +368,13 @@ export default function App() {
   // Media Library Management
   // Add images to library
   const addImagesToLibrary = useCallback((files: FileList) => {
-    const newImages: string[] = [];
+    const newImages: MediaItem[] = [];
     Array.from(files).forEach(file => {
       const filePath = (file as any).path ?? file.name;
       const validation = validateImageFormat(filePath);
       if (validation.valid) {
-        newImages.push(filePath);
+        // For images, use the image itself as the thumbnail
+        newImages.push({ path: filePath, thumbnail: filePath });
       } else {
         showToast('warning', `Skipped ${file.name}: ${validation.error}`);
       }
@@ -331,20 +386,35 @@ export default function App() {
   }, [showToast]);
 
   // Add videos to library
-  const addVideosToLibrary = useCallback((files: FileList) => {
-    const newVideos: string[] = [];
+  const addVideosToLibrary = useCallback(async (files: FileList) => {
+    const validFiles: { path: string; file: File }[] = [];
     Array.from(files).forEach(file => {
       const filePath = (file as any).path ?? file.name;
       const validation = validateVideoFormat(filePath);
       if (validation.valid) {
-        newVideos.push(filePath);
+        validFiles.push({ path: filePath, file });
       } else {
         showToast('warning', `Skipped ${file.name}: ${validation.error}`);
       }
     });
-    if (newVideos.length > 0) {
+
+    if (validFiles.length > 0) {
+      // Add videos first without thumbnails
+      const newVideos: MediaItem[] = validFiles.map(v => ({ path: v.path }));
       setMediaVideos(prev => [...prev, ...newVideos]);
-      showToast('success', `Added ${newVideos.length} video${newVideos.length > 1 ? 's' : ''} to library`);
+      showToast('success', `Added ${validFiles.length} video${validFiles.length > 1 ? 's' : ''} to library`);
+
+      // Generate thumbnails asynchronously
+      validFiles.forEach(async ({ path }) => {
+        try {
+          const thumbnail = await generateVideoThumbnail(path);
+          setMediaVideos(prev => prev.map(v =>
+            v.path === path ? { ...v, thumbnail } : v
+          ));
+        } catch (err) {
+          console.error('Failed to generate thumbnail for', path, err);
+        }
+      });
     }
   }, [showToast]);
 
@@ -368,12 +438,12 @@ export default function App() {
 
   // Remove from libraries
   const removeImageFromLibrary = useCallback((path: string) => {
-    setMediaImages(prev => prev.filter(p => p !== path));
+    setMediaImages(prev => prev.filter(p => p.path !== path));
     showToast('info', 'Image removed from library');
   }, [showToast]);
 
   const removeVideoFromLibrary = useCallback((path: string) => {
-    setMediaVideos(prev => prev.filter(p => p !== path));
+    setMediaVideos(prev => prev.filter(p => p.path !== path));
     showToast('info', 'Video removed from library');
   }, [showToast]);
 
@@ -383,38 +453,68 @@ export default function App() {
   }, [showToast]);
 
   // Add intro videos to library
-  const addIntrosToLibrary = useCallback((files: FileList) => {
-    const newIntros: string[] = [];
+  const addIntrosToLibrary = useCallback(async (files: FileList) => {
+    const validFiles: { path: string; file: File }[] = [];
     Array.from(files).forEach(file => {
       const filePath = (file as any).path ?? file.name;
       const validation = validateVideoFormat(filePath);
       if (validation.valid) {
-        newIntros.push(filePath);
+        validFiles.push({ path: filePath, file });
       } else {
         showToast('warning', `Skipped ${file.name}: ${validation.error}`);
       }
     });
-    if (newIntros.length > 0) {
+
+    if (validFiles.length > 0) {
+      // Add intros first without thumbnails
+      const newIntros: MediaItem[] = validFiles.map(v => ({ path: v.path }));
       setMediaIntros(prev => [...prev, ...newIntros]);
-      showToast('success', `Added ${newIntros.length} intro video${newIntros.length > 1 ? 's' : ''} to library`);
+      showToast('success', `Added ${validFiles.length} intro video${validFiles.length > 1 ? 's' : ''} to library`);
+
+      // Generate thumbnails asynchronously
+      validFiles.forEach(async ({ path }) => {
+        try {
+          const thumbnail = await generateVideoThumbnail(path);
+          setMediaIntros(prev => prev.map(v =>
+            v.path === path ? { ...v, thumbnail } : v
+          ));
+        } catch (err) {
+          console.error('Failed to generate thumbnail for', path, err);
+        }
+      });
     }
   }, [showToast]);
 
   // Add outro videos to library
-  const addOutrosToLibrary = useCallback((files: FileList) => {
-    const newOutros: string[] = [];
+  const addOutrosToLibrary = useCallback(async (files: FileList) => {
+    const validFiles: { path: string; file: File }[] = [];
     Array.from(files).forEach(file => {
       const filePath = (file as any).path ?? file.name;
       const validation = validateVideoFormat(filePath);
       if (validation.valid) {
-        newOutros.push(filePath);
+        validFiles.push({ path: filePath, file });
       } else {
         showToast('warning', `Skipped ${file.name}: ${validation.error}`);
       }
     });
-    if (newOutros.length > 0) {
+
+    if (validFiles.length > 0) {
+      // Add outros first without thumbnails
+      const newOutros: MediaItem[] = validFiles.map(v => ({ path: v.path }));
       setMediaOutros(prev => [...prev, ...newOutros]);
-      showToast('success', `Added ${newOutros.length} outro video${newOutros.length > 1 ? 's' : ''} to library`);
+      showToast('success', `Added ${validFiles.length} outro video${validFiles.length > 1 ? 's' : ''} to library`);
+
+      // Generate thumbnails asynchronously
+      validFiles.forEach(async ({ path }) => {
+        try {
+          const thumbnail = await generateVideoThumbnail(path);
+          setMediaOutros(prev => prev.map(v =>
+            v.path === path ? { ...v, thumbnail } : v
+          ));
+        } catch (err) {
+          console.error('Failed to generate thumbnail for', path, err);
+        }
+      });
     }
   }, [showToast]);
 
@@ -438,12 +538,12 @@ export default function App() {
 
   // Remove from intro/outro/font libraries
   const removeIntroFromLibrary = useCallback((path: string) => {
-    setMediaIntros(prev => prev.filter(p => p !== path));
+    setMediaIntros(prev => prev.filter(p => p.path !== path));
     showToast('info', 'Intro video removed from library');
   }, [showToast]);
 
   const removeOutroFromLibrary = useCallback((path: string) => {
-    setMediaOutros(prev => prev.filter(p => p !== path));
+    setMediaOutros(prev => prev.filter(p => p.path !== path));
     showToast('info', 'Outro video removed from library');
   }, [showToast]);
 
@@ -1579,14 +1679,23 @@ export default function App() {
                 <div className="media-grid">
                   {mediaImages.map((img, idx) => (
                     <div key={idx} className="media-item">
-                      <div className="media-thumbnail" style={{backgroundImage: `url('${img}')`}}
-                        onClick={() => addLogoTrack(img)}
+                      <div className="media-thumbnail" style={{backgroundImage: `url('${img.thumbnail || img.path}')`}}
+                        onClick={() => addLogoTrack(img.path)}
                         title="Click to add as logo track"
-                      />
-                      <div className="media-name">{img.split('/').pop() || img.split('\\').pop()}</div>
+                      >
+                        <button
+                          className="btn-preview-media"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewModal({ isOpen: true, type: 'image', src: img.path });
+                          }}
+                          title="Preview image"
+                        >👁️</button>
+                      </div>
+                      <div className="media-name">{img.path.split('/').pop() || img.path.split('\\').pop()}</div>
                       <button
                         className="btn-remove-media"
-                        onClick={() => removeImageFromLibrary(img)}
+                        onClick={() => removeImageFromLibrary(img.path)}
                         title="Remove from library"
                       >×</button>
                     </div>
@@ -1611,19 +1720,29 @@ export default function App() {
                 <div className="media-grid">
                   {mediaVideos.map((vid, idx) => (
                     <div key={idx} className="media-item">
-                      <div className="media-thumbnail media-thumbnail-video"
+                      <div
+                        className={`media-thumbnail ${!vid.thumbnail ? 'media-thumbnail-video' : ''}`}
+                        style={vid.thumbnail ? {backgroundImage: `url('${vid.thumbnail}')`} : undefined}
                         onClick={() => {
-                          addVideoClip(vid);
+                          addVideoClip(vid.path);
                           showToast('success', 'Video added to timeline');
                         }}
                         title="Click to add to timeline"
                       >
-                        <div className="media-icon">🎬</div>
+                        {!vid.thumbnail && <div className="media-icon">🎬</div>}
+                        <button
+                          className="btn-preview-media"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewModal({ isOpen: true, type: 'video', src: vid.path });
+                          }}
+                          title="Preview video"
+                        >👁️</button>
                       </div>
-                      <div className="media-name">{vid.split('/').pop() || vid.split('\\').pop()}</div>
+                      <div className="media-name">{vid.path.split('/').pop() || vid.path.split('\\').pop()}</div>
                       <button
                         className="btn-remove-media"
-                        onClick={() => removeVideoFromLibrary(vid)}
+                        onClick={() => removeVideoFromLibrary(vid.path)}
                         title="Remove from library"
                       >×</button>
                     </div>
@@ -1686,20 +1805,30 @@ export default function App() {
                 <div className="media-grid">
                   {mediaIntros.map((intro, idx) => (
                     <div key={idx} className="media-item">
-                      <div className="media-thumbnail media-thumbnail-video"
+                      <div
+                        className={`media-thumbnail ${!intro.thumbnail ? 'media-thumbnail-video' : ''}`}
+                        style={intro.thumbnail ? {backgroundImage: `url('${intro.thumbnail}')`} : undefined}
                         onClick={() => {
-                          t.intro = { src: intro, duration: 3 };
+                          t.intro = { src: intro.path, duration: 3 };
                           setP({ ...p });
                           showToast('success', 'Video set as intro');
                         }}
                         title="Click to use as intro"
                       >
-                        <div className="media-icon">🎞️</div>
+                        {!intro.thumbnail && <div className="media-icon">🎞️</div>}
+                        <button
+                          className="btn-preview-media"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewModal({ isOpen: true, type: 'video', src: intro.path });
+                          }}
+                          title="Preview intro"
+                        >👁️</button>
                       </div>
-                      <div className="media-name">{intro.split('/').pop() || intro.split('\\').pop()}</div>
+                      <div className="media-name">{intro.path.split('/').pop() || intro.path.split('\\').pop()}</div>
                       <button
                         className="btn-remove-media"
-                        onClick={() => removeIntroFromLibrary(intro)}
+                        onClick={() => removeIntroFromLibrary(intro.path)}
                         title="Remove from library"
                       >×</button>
                     </div>
@@ -1724,20 +1853,30 @@ export default function App() {
                 <div className="media-grid">
                   {mediaOutros.map((outro, idx) => (
                     <div key={idx} className="media-item">
-                      <div className="media-thumbnail media-thumbnail-video"
+                      <div
+                        className={`media-thumbnail ${!outro.thumbnail ? 'media-thumbnail-video' : ''}`}
+                        style={outro.thumbnail ? {backgroundImage: `url('${outro.thumbnail}')`} : undefined}
                         onClick={() => {
-                          t.outro = { src: outro, duration: 3 };
+                          t.outro = { src: outro.path, duration: 3 };
                           setP({ ...p });
                           showToast('success', 'Video set as outro');
                         }}
                         title="Click to use as outro"
                       >
-                        <div className="media-icon">🎞️</div>
+                        {!outro.thumbnail && <div className="media-icon">🎞️</div>}
+                        <button
+                          className="btn-preview-media"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setPreviewModal({ isOpen: true, type: 'video', src: outro.path });
+                          }}
+                          title="Preview outro"
+                        >👁️</button>
                       </div>
-                      <div className="media-name">{outro.split('/').pop() || outro.split('\\').pop()}</div>
+                      <div className="media-name">{outro.path.split('/').pop() || outro.path.split('\\').pop()}</div>
                       <button
                         className="btn-remove-media"
-                        onClick={() => removeOutroFromLibrary(outro)}
+                        onClick={() => removeOutroFromLibrary(outro.path)}
                         title="Remove from library"
                       >×</button>
                     </div>
@@ -2739,6 +2878,36 @@ export default function App() {
           type="info"
         />
       </Suspense>
+
+      {/* Preview Modal */}
+      {previewModal.isOpen && (
+        <div className="preview-modal-overlay" onClick={() => setPreviewModal({ ...previewModal, isOpen: false })}>
+          <div className="preview-modal-content" onClick={(e) => e.stopPropagation()}>
+            <button
+              className="preview-modal-close"
+              onClick={() => setPreviewModal({ ...previewModal, isOpen: false })}
+              title="Close preview"
+            >×</button>
+            <div className="preview-modal-title">
+              {previewModal.src.split('/').pop() || previewModal.src.split('\\').pop()}
+            </div>
+            {previewModal.type === 'video' ? (
+              <video
+                src={previewModal.src}
+                controls
+                autoPlay
+                style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }}
+              />
+            ) : (
+              <img
+                src={previewModal.src}
+                alt="Preview"
+                style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }}
+              />
+            )}
+          </div>
+        </div>
+      )}
     </>
   );
 }
