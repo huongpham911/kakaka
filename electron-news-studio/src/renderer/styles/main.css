@@ -207,31 +207,37 @@ header { padding:12px 16px; background:var(--bg-tertiary); border-bottom:1px sol
   background: var(--bg-tertiary);
   border-top: 2px solid var(--border-primary);
   padding: 16px;
-  overflow-x: auto;
-  overflow-y: scroll; /* Always show scrollbar */
+  padding-bottom: 20px; /* Extra space for horizontal scrollbar */
+  overflow-x: auto; /* Show horizontal scrollbar when needed */
+  overflow-y: auto; /* Show vertical scrollbar when needed */
   min-height: 280px;
   max-height: 350px;
-  scrollbar-gutter: stable;
 }
 .timeline-section::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
+  width: 14px; /* Vertical scrollbar width */
+  height: 16px; /* Horizontal scrollbar height - BIGGER */
 }
 .timeline-section::-webkit-scrollbar-track {
-  background: #1a2332;
-  border-radius: 6px;
-  border: 1px solid #2a3b4d;
+  background: #0a0e13; /* Very dark for contrast */
+  border-radius: 8px;
+  border: 2px solid #2a3b4d; /* Thicker border */
 }
 .timeline-section::-webkit-scrollbar-thumb {
-  background: #2463eb;
-  border-radius: 6px;
-  border: 2px solid #1a2332;
+  background: linear-gradient(90deg, #2463eb 0%, #0891b2 100%); /* Gradient */
+  border-radius: 8px;
+  border: 2px solid #0a0e13;
+  min-width: 60px; /* Minimum width for horizontal scrollbar */
 }
 .timeline-section::-webkit-scrollbar-thumb:hover {
-  background: #3b82f6;
+  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+  cursor: pointer;
+}
+.timeline-section::-webkit-scrollbar-thumb:active {
+  background: #1e40af;
+  cursor: grabbing;
 }
 .timeline-section::-webkit-scrollbar-corner {
-  background: #1a2332;
+  background: #0a0e13;
 }
 
 /* Timeline tracks - layered with vertical scroll */
@@ -331,6 +337,7 @@ header { padding:12px 16px; background:var(--bg-tertiary); border-bottom:1px sol
 .track-content {
   flex: 1;
   padding: 8px;
+  padding-bottom: 12px; /* Extra space for scrollbar */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -339,14 +346,26 @@ header { padding:12px 16px; background:var(--bg-tertiary); border-bottom:1px sol
 }
 
 .track-content::-webkit-scrollbar {
-  height: 6px;
+  height: 10px; /* Bigger scrollbar - easier to grab */
 }
 .track-content::-webkit-scrollbar-track {
   background: #0a0e13;
+  border-radius: 5px;
+  border: 1px solid #1a2332;
 }
 .track-content::-webkit-scrollbar-thumb {
-  background: #2463eb;
-  border-radius: 3px;
+  background: linear-gradient(90deg, #2463eb 0%, #0891b2 100%);
+  border-radius: 5px;
+  border: 1px solid #0a0e13;
+  min-width: 40px; /* Minimum thumb width */
+}
+.track-content::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(90deg, #3b82f6 0%, #06b6d4 100%);
+  cursor: pointer;
+}
+.track-content::-webkit-scrollbar-thumb:active {
+  background: #1e40af;
+  cursor: grabbing;
 }
 
 /* Track-specific colors */
