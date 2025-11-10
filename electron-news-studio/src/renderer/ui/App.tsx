@@ -455,9 +455,10 @@ export default function App() {
   // ========== TRACK MANAGEMENT ==========
   // Add Audio Track
   const addAudioTrack = useCallback((src: string, type: 'bgm' | 'voice' = 'bgm') => {
+    const filename = src.split('/').pop() || src.split('\\').pop() || 'audio';
     const newTrack: AudioTrack = {
       id: `audio-${Date.now()}`,
-      name: type === 'bgm' ? `BGM ${t.audios.length + 1}` : `Voice ${t.audios.length + 1}`,
+      name: filename,
       src,
       gain: type === 'bgm' ? -6 : 0,
       type,
@@ -467,14 +468,15 @@ export default function App() {
       ...old,
       tracks: { ...old.tracks, audios: [...old.tracks.audios, newTrack] }
     }));
-    showToast('success', `Audio track added: ${newTrack.name}`);
-  }, [t.audios, showToast]);
+    showToast('success', `Audio track added`);
+  }, [showToast]);
 
   // Add Logo Track
   const addLogoTrack = useCallback((src: string) => {
+    const filename = src.split('/').pop() || src.split('\\').pop() || 'logo';
     const newTrack: LogoTrack = {
       id: `logo-${Date.now()}`,
-      name: `Logo ${t.logos.length + 1}`,
+      name: filename,
       src,
       pos: 'top-right',
       opacity: 0.9,
@@ -484,14 +486,15 @@ export default function App() {
       ...old,
       tracks: { ...old.tracks, logos: [...old.tracks.logos, newTrack] }
     }));
-    showToast('success', `Logo track added: ${newTrack.name}`);
-  }, [t.logos, showToast]);
+    showToast('success', `Logo track added`);
+  }, [showToast]);
 
   // Add Ticker Track
   const addTickerTrack = useCallback((text: string, font: string) => {
+    const name = text.length > 30 ? text.substring(0, 30) + '...' : text;
     const newTrack: TickerTrack = {
       id: `ticker-${Date.now()}`,
-      name: `Ticker ${t.tickers.length + 1}`,
+      name,
       text,
       font,
       size: 48,
@@ -513,8 +516,8 @@ export default function App() {
       ...old,
       tracks: { ...old.tracks, tickers: [...old.tracks.tickers, newTrack] }
     }));
-    showToast('success', `Ticker track added: ${newTrack.name}`);
-  }, [t.tickers, showToast]);
+    showToast('success', `Ticker track added`);
+  }, [showToast]);
 
   // Remove Track (generic)
   const removeAudioTrack = useCallback((id: string) => {
