@@ -146,7 +146,20 @@ export function createExporter() {
     let currentLabel = 'base';
     if (logos.length > 0) {
       logos.forEach((logo: any, i: number) => {
-        const pos = posExpr(logo.pos || "top-right");
+        // Use custom x, y if available, otherwise use preset position
+        let overlayX: string;
+        let overlayY: string;
+        if (logo.x !== undefined && logo.y !== undefined) {
+          // Custom position (pixels from left/top)
+          overlayX = String(logo.x);
+          overlayY = String(logo.y);
+        } else {
+          // Preset position (top-left, top-right, etc)
+          const pos = posExpr(logo.pos || "top-right");
+          overlayX = pos.x;
+          overlayY = pos.y;
+        }
+
         const op  = logo.opacity ?? 0.9;
         const lsc = logo.scale ?? 220;
         const inputIdx = logoStartIdx + i;
@@ -154,7 +167,7 @@ export function createExporter() {
 
         vf.push(
           `[${inputIdx}:v]scale=${lsc}:-1,format=rgba,colorchannelmixer=aa=${op}[lg${i}]`,
-          `[${currentLabel}][lg${i}]overlay=${pos.x}:${pos.y}:enable='between(t,${logo.start ?? 0},${logo.end ?? duration})'[${outputLabel}]`
+          `[${currentLabel}][lg${i}]overlay=${overlayX}:${overlayY}:enable='between(t,${logo.start ?? 0},${logo.end ?? duration})'[${outputLabel}]`
         );
         currentLabel = outputLabel;
       });

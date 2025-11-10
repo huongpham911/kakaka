@@ -104,6 +104,10 @@ export default function App() {
   const [mediaAudio, setMediaAudio] = useState<string[]>([]); // For BGM/Voice
   const [mediaFonts, setMediaFonts] = useState<string[]>([]); // For ticker fonts
 
+  // Logo drag state (for dragging logos on preview)
+  const [draggedLogoId, setDraggedLogoId] = useState<string | null>(null);
+  const [logoDragOffset, setLogoDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
 
@@ -780,6 +784,42 @@ export default function App() {
       // Use Font Library → addTickerTrack()
     }
   };
+
+  // Logo drag handlers (for dragging logos on preview)
+  const handleLogoMouseDown = useCallback((e: React.MouseEvent, logoId: string) => {
+    e.preventDefault();
+    const logo = t.logos.find(l => l.id === logoId);
+    if (!logo) return;
+
+    const rect = e.currentTarget.getBoundingClientRect();
+    const offsetX = e.clientX - rect.left;
+    const offsetY = e.clientY - rect.top;
+
+    setDraggedLogoId(logoId);
+    setLogoDragOffset({ x: offsetX, y: offsetY });
+  }, [t.logos]);
+
+  const handleLogoMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!draggedLogoId) return;
+
+    const previewVideo = e.currentTarget;
+    const rect = previewVideo.getBoundingClientRect();
+
+    // Calculate new position relative to video container
+    const x = e.clientX - rect.left - logoDragOffset.x;
+    const y = e.clientY - rect.top - logoDragOffset.y;
+
+    // Clamp to video boundaries
+    const clampedX = Math.max(0, Math.min(x, rect.width - 100)); // 100px approx logo width
+    const clampedY = Math.max(0, Math.min(y, rect.height - 100));
+
+    // Update logo position
+    updateLogoTrack(draggedLogoId, { x: Math.round(clampedX), y: Math.round(clampedY) });
+  }, [draggedLogoId, logoDragOffset, updateLogoTrack]);
+
+  const handleLogoMouseUp = useCallback(() => {
+    setDraggedLogoId(null);
+  }, []);
 
   async function onExport() {
     if (!window.electronAPI) {
@@ -1855,7 +1895,13 @@ export default function App() {
       {/* PREVIEW SECTION - Center */}
       <div className="preview-section">
         <div className="preview-container" ref={previewContainerRef}>
-          <div className="preview-video">
+          <div
+            className="preview-video"
+            onMouseMove={handleLogoMouseMove}
+            onMouseUp={handleLogoMouseUp}
+            onMouseLeave={handleLogoMouseUp}
+            style={{ position: 'relative', cursor: draggedLogoId ? 'grabbing' : 'default' }}
+          >
             {t.video.length > 0 && t.video[0].src ? (
               <>
                 <video
@@ -1870,6 +1916,52 @@ export default function App() {
                     borderRadius: '12px'
                   }}
                 />
+
+                {/* Logo Overlays - Draggable */}
+                {t.logos.map((logo) => (
+                  <div
+                    key={logo.id}
+                    onMouseDown={(e) => handleLogoMouseDown(e, logo.id)}
+                    style={{
+                      position: 'absolute',
+                      left: logo.x !== undefined ? `${logo.x}px` : '20px',
+                      top: logo.y !== undefined ? `${logo.y}px` : '20px',
+                      opacity: logo.opacity ?? 0.9,
+                      cursor: draggedLogoId === logo.id ? 'grabbing' : 'grab',
+                      zIndex: 10,
+                      pointerEvents: 'auto'
+                    }}
+                    title={`${logo.name} - Click and drag to reposition`}
+                  >
+                    <img
+                      src={logo.src}
+                      alt={logo.name}
+                      style={{
+                        width: `${logo.scale ?? 220}px`,
+                        height: 'auto',
+                        userSelect: 'none',
+                        border: draggedLogoId === logo.id ? '2px solid #3b82f6' : '2px solid transparent',
+                        borderRadius: '4px'
+                      }}
+                      draggable={false}
+                    />
+                    <div style={{
+                      position: 'absolute',
+                      bottom: '-20px',
+                      left: '0',
+                      fontSize: '10px',
+                      background: 'rgba(0,0,0,0.8)',
+                      color: 'white',
+                      padding: '2px 6px',
+                      borderRadius: '3px',
+                      whiteSpace: 'nowrap',
+                      opacity: draggedLogoId === logo.id ? 1 : 0,
+                      transition: 'opacity 0.2s'
+                    }}>
+                      x:{logo.x ?? 0} y:{logo.y ?? 0}
+                    </div>
+                  </div>
+                ))}
 
                 {/* Video Progress Bar */}
                 <div

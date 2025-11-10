@@ -37,7 +37,9 @@ export type LogoTrack = {
   src: string;
   start?: number;
   end?: number;
-  pos?: string; // top-left, top-right, bottom-left, bottom-right, center
+  pos?: string; // top-left, top-right, bottom-left, bottom-right, center (preset)
+  x?: number; // Custom X position (pixels from left, overrides pos if set)
+  y?: number; // Custom Y position (pixels from top, overrides pos if set)
   opacity?: number;
   scale?: number;
 };
