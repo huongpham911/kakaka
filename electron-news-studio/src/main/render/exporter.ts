@@ -244,6 +244,11 @@ export function createExporter() {
           drawtextParams += `:box=1:boxcolor=${boxColorWithAlpha}:boxborderw=20`;
         }
 
+        // Add timing (enable between start and end)
+        const tickerStart = ticker.start ?? 0;
+        const tickerEnd = ticker.end ?? duration;
+        drawtextParams += `:enable='between(t,${tickerStart},${tickerEnd})'`;
+
         const outputLabel = i === tickers.length - 1 ? 'vout' : `vtick${i}`;
         vf.push(`[${currentLabel}]drawtext=${drawtextParams}[${outputLabel}]`);
         currentLabel = outputLabel;
@@ -258,22 +263,40 @@ export function createExporter() {
     if (audios.length === 0) {
       // No audio
     } else if (audios.length === 1) {
-      // Single audio track - simple gain
+      // Single audio track - simple gain with timing
       const audio = audios[0];
       const gain = audio.gain ?? (audio.type === 'voice' ? 0 : -6);
       const inputIdx = audioStartIdx;
-      af.push(`[${inputIdx}:a]volume=${asVolDb(gain)}[aout]`);
+      const audioStart = audio.start ?? 0;
+      const audioEnd = audio.end ?? duration;
+      const audioDur = audioEnd - audioStart;
+
+      // Apply delay (start time), trim (duration), and volume
+      if (audioStart > 0 || audioEnd < duration) {
+        af.push(`[${inputIdx}:a]adelay=${Math.round(audioStart * 1000)}|${Math.round(audioStart * 1000)},atrim=0:${audioDur},volume=${asVolDb(gain)}[aout]`);
+      } else {
+        af.push(`[${inputIdx}:a]volume=${asVolDb(gain)}[aout]`);
+      }
     } else {
       // Multiple audio tracks - need mixing
       // Separate voice tracks (with ducking) from other tracks
       const voiceTracks = audios.filter((a: any) => a.duckOthers);
       const otherTracks = audios.filter((a: any) => !a.duckOthers);
 
-      // Apply gain to all tracks first
+      // Apply delay, trim, and gain to all tracks first
       audios.forEach((audio: any, i: number) => {
         const gain = audio.gain ?? (audio.type === 'voice' ? 0 : -6);
         const inputIdx = audioStartIdx + i;
-        af.push(`[${inputIdx}:a]volume=${asVolDb(gain)}[a${i}]`);
+        const audioStart = audio.start ?? 0;
+        const audioEnd = audio.end ?? duration;
+        const audioDur = audioEnd - audioStart;
+
+        // Apply timing if custom start/end is set
+        if (audioStart > 0 || audioEnd < duration) {
+          af.push(`[${inputIdx}:a]adelay=${Math.round(audioStart * 1000)}|${Math.round(audioStart * 1000)},atrim=0:${audioDur},volume=${asVolDb(gain)}[a${i}]`);
+        } else {
+          af.push(`[${inputIdx}:a]volume=${asVolDb(gain)}[a${i}]`);
+        }
       });
 
       if (voiceTracks.length > 0 && otherTracks.length > 0) {

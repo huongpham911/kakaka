@@ -2447,12 +2447,33 @@ export default function App() {
                   title="Remove ticker track"
                 >×</button>
               </div>
-              <div className="track-content">
-                <div className="track-item">
-                  <div className="track-item-name">🔤 {ticker.text.substring(0, 30)}...</div>
-                  <div className="track-item-info">
-                    {ticker.position || 'footer'} • {ticker.direction || 'rtl'}
+              <div
+                className="track-content"
+                onMouseMove={handleTimelineTrackMouseMove}
+                onMouseUp={handleTimelineTrackMouseUp}
+                onMouseLeave={handleTimelineTrackMouseUp}
+              >
+                <div className="track-item-wrapper">
+                  <div
+                    className="resize-handle resize-handle-left"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, ticker.id, 'ticker', 'resize-start')}
+                    title="Drag to change start time"
+                  />
+                  <div
+                    className="track-item"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, ticker.id, 'ticker', 'move')}
+                    style={{ cursor: timelineDrag.trackId === ticker.id ? 'grabbing' : 'grab' }}
+                  >
+                    <div className="track-item-name">🔤 {ticker.text.substring(0, 30)}...</div>
+                    <div className="track-item-info">
+                      {ticker.position || 'footer'} • {ticker.direction || 'rtl'} • {(ticker.start ?? 0).toFixed(1)}s - {(ticker.end ?? p.duration).toFixed(1)}s
+                    </div>
                   </div>
+                  <div
+                    className="resize-handle resize-handle-right"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, ticker.id, 'ticker', 'resize-end')}
+                    title="Drag to change end time"
+                  />
                 </div>
               </div>
             </div>
@@ -2508,12 +2529,33 @@ export default function App() {
                   title="Remove logo track"
                 >×</button>
               </div>
-              <div className="track-content">
-                <div className="track-item">
-                  <div className="track-item-name">🖼️ {logo.src.split('/').pop()}</div>
-                  <div className="track-item-info">
-                    {logo.pos || 'top-right'} • opacity: {logo.opacity || 1}
+              <div
+                className="track-content"
+                onMouseMove={handleTimelineTrackMouseMove}
+                onMouseUp={handleTimelineTrackMouseUp}
+                onMouseLeave={handleTimelineTrackMouseUp}
+              >
+                <div className="track-item-wrapper">
+                  <div
+                    className="resize-handle resize-handle-left"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, logo.id, 'logo', 'resize-start')}
+                    title="Drag to change start time"
+                  />
+                  <div
+                    className="track-item"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, logo.id, 'logo', 'move')}
+                    style={{ cursor: timelineDrag.trackId === logo.id ? 'grabbing' : 'grab' }}
+                  >
+                    <div className="track-item-name">🖼️ {logo.src.split('/').pop()}</div>
+                    <div className="track-item-info">
+                      {logo.pos || `x:${logo.x ?? 0} y:${logo.y ?? 0}`} • {(logo.start ?? 0).toFixed(1)}s - {(logo.end ?? p.duration).toFixed(1)}s
+                    </div>
                   </div>
+                  <div
+                    className="resize-handle resize-handle-right"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, logo.id, 'logo', 'resize-end')}
+                    title="Drag to change end time"
+                  />
                 </div>
               </div>
             </div>
@@ -2546,15 +2588,36 @@ export default function App() {
                   title="Remove audio track"
                 >×</button>
               </div>
-              <div className="track-content">
-                <div className="track-item">
-                  <div className="track-item-name">
-                    {audio.type === 'voice' ? '🎤' : '🎵'} {audio.src.split('/').pop()}
+              <div
+                className="track-content"
+                onMouseMove={handleTimelineTrackMouseMove}
+                onMouseUp={handleTimelineTrackMouseUp}
+                onMouseLeave={handleTimelineTrackMouseUp}
+              >
+                <div className="track-item-wrapper">
+                  <div
+                    className="resize-handle resize-handle-left"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, audio.id, 'audio', 'resize-start')}
+                    title="Drag to change start time"
+                  />
+                  <div
+                    className="track-item"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, audio.id, 'audio', 'move')}
+                    style={{ cursor: timelineDrag.trackId === audio.id ? 'grabbing' : 'grab' }}
+                  >
+                    <div className="track-item-name">
+                      {audio.type === 'voice' ? '🎤' : '🎵'} {audio.src.split('/').pop()}
+                    </div>
+                    <div className="track-item-info">
+                      {audio.type === 'voice' ? 'Voice' : 'BGM'} • {audio.gain || 0}dB
+                      {audio.duckOthers ? ' • Duck' : ''} • {(audio.start ?? 0).toFixed(1)}s - {(audio.end ?? p.duration).toFixed(1)}s
+                    </div>
                   </div>
-                  <div className="track-item-info">
-                    {audio.type === 'voice' ? 'Voice' : 'BGM'} • {audio.gain || 0}dB
-                    {audio.duckOthers ? ' • Duck' : ''}
-                  </div>
+                  <div
+                    className="resize-handle resize-handle-right"
+                    onMouseDown={(e) => handleTimelineTrackMouseDown(e, audio.id, 'audio', 'resize-end')}
+                    title="Drag to change end time"
+                  />
                 </div>
               </div>
             </div>
