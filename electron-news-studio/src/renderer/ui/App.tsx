@@ -1781,24 +1781,16 @@ export default function App() {
               )}
             </div>
 
-            {/* Ticker Section */}
+            {/* Ticker Section - Compact */}
             <div className="section">
               <h3 className="section-title">📝 Ticker</h3>
+
               <label>Text</label>
               <textarea rows={2} value={t.ticker?.text ?? ""} onChange={e => { t.ticker!.text = e.target.value; setP({ ...p }); }}
-                placeholder="Enter ticker text..." style={{fontSize: '13px'}} />
+                placeholder="Enter scrolling ticker text..." style={{fontSize: '13px'}} />
 
-              <label>Font</label>
-              <div className={`dropzone ${dragOver === 'font' ? 'drag-over' : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'font')}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'font')}>
-                <input type="file" accept=".ttf,.otf" onChange={e => {
-                  const f = e.target.files?.[0]; if (!f) return;
-                  t.ticker!.font = (f as any).path ?? ""; setP({ ...p });
-                }} />
-                {t.ticker?.font && <div className="file-name">🔤 {t.ticker.font.split('/').pop()}</div>}
-                <div className="drop-hint">TTF/OTF font</div>
+              <div style={{padding: '6px 8px', background: 'var(--bg-elevated)', borderRadius: '4px', fontSize: '11px', opacity: 0.7, marginTop: '8px', marginBottom: '12px'}}>
+                💡 Use <strong>🔤 Font Library</strong> above to set ticker font
               </div>
 
               <div className="row">
@@ -1814,20 +1806,81 @@ export default function App() {
                 </select></div>
               </div>
 
-              <details style={{marginTop: '12px'}}>
-                <summary style={{cursor: 'pointer', fontSize: '12px', opacity: 0.85, marginBottom: '8px'}}>⚙️ Advanced</summary>
-                <div className="row">
-                  <div><label>Size</label><input type="number" value={t.ticker?.size ?? 48} onChange={e => { t.ticker!.size = Number(e.target.value||48); setP({ ...p }); }} /></div>
-                  <div><label>Speed</label><input type="number" value={t.ticker?.speed ?? 250} onChange={e => { t.ticker!.speed = Number(e.target.value||250); setP({ ...p }); }} /></div>
+              <div className="row">
+                <div><label>Size</label><input type="number" value={t.ticker?.size ?? 48} onChange={e => { t.ticker!.size = Number(e.target.value||48); setP({ ...p }); }} /></div>
+                <div><label>Speed</label><input type="number" value={t.ticker?.speed ?? 250} onChange={e => { t.ticker!.speed = Number(e.target.value||250); setP({ ...p }); }} /></div>
+              </div>
+
+              <label>Text Color</label>
+              <div className="color-input-group">
+                <input type="text" value={t.ticker?.color ?? "white"} onChange={e => { t.ticker!.color = e.target.value; setP({ ...p }); }} placeholder="white, #ffffff" />
+                <input type="color" value={t.ticker?.color === "white" ? "#ffffff" : (t.ticker?.color || "#ffffff")}
+                  onChange={e => { t.ticker!.color = e.target.value; setP({ ...p }); }}
+                  title="Pick color" />
+              </div>
+
+              <label>Text Opacity</label>
+              <input type="range" min="0" max="1" step="0.05" value={t.ticker?.textOpacity ?? 1.0}
+                onChange={e => { t.ticker!.textOpacity = Number(e.target.value); setP({ ...p }); }}
+                style={{accentColor: 'var(--accent-primary)'}} />
+              <div style={{fontSize: '11px', opacity: 0.7, marginTop: '-8px', marginBottom: '8px'}}>{((t.ticker?.textOpacity ?? 1.0) * 100).toFixed(0)}%</div>
+
+              <details style={{marginTop: '8px', marginBottom: '8px'}}>
+                <summary style={{cursor: 'pointer', fontSize: '12px', fontWeight: '600', marginBottom: '8px'}}>🌑 Shadow</summary>
+
+                <label>Enable Shadow</label>
+                <select value={t.ticker?.shadow ? "1":"0"} onChange={e => { t.ticker!.shadow = e.target.value==="1"; setP({ ...p }); }} style={{marginBottom: '12px'}}>
+                  <option value="0">Off</option>
+                  <option value="1">On</option>
+                </select>
+
+                {t.ticker?.shadow && (
+                  <>
+                    <label>Shadow Color</label>
+                    <div className="color-input-group">
+                      <input type="text" value={t.ticker?.shadowColor ?? "black"} onChange={e => { t.ticker!.shadowColor = e.target.value; setP({ ...p }); }} placeholder="black, #000000" />
+                      <input type="color" value={t.ticker?.shadowColor === "black" ? "#000000" : (t.ticker?.shadowColor || "#000000")}
+                        onChange={e => { t.ticker!.shadowColor = e.target.value; setP({ ...p }); }}
+                        title="Pick shadow color" />
+                    </div>
+
+                    <div className="row">
+                      <div><label>Offset X</label><input type="number" value={t.ticker?.shadowX ?? 2} onChange={e => { t.ticker!.shadowX = Number(e.target.value||2); setP({ ...p }); }} /></div>
+                      <div><label>Offset Y</label><input type="number" value={t.ticker?.shadowY ?? 2} onChange={e => { t.ticker!.shadowY = Number(e.target.value||2); setP({ ...p }); }} /></div>
+                    </div>
+                  </>
+                )}
+              </details>
+
+              <details style={{marginTop: '8px'}}>
+                <summary style={{cursor: 'pointer', fontSize: '12px', fontWeight: '600', marginBottom: '8px'}}>📦 Background Box</summary>
+                <div style={{fontSize: '11px', opacity: 0.7, marginBottom: '8px', fontStyle: 'italic'}}>
+                  Background box makes text easier to read
                 </div>
-                <label>Color</label>
-                <input type="text" value={t.ticker?.color ?? "white"} onChange={e => { t.ticker!.color = e.target.value; setP({ ...p }); }} />
-                <label>Opacity</label>
-                <input type="number" min="0" max="1" step="0.05" value={t.ticker?.textOpacity ?? 1.0} onChange={e => { t.ticker!.textOpacity = Number(e.target.value); setP({ ...p }); }} />
-                <div className="row">
-                  <div><label>Shadow</label><select value={t.ticker?.shadow ? "1":"0"} onChange={e => { t.ticker!.shadow = e.target.value==="1"; setP({ ...p }); }}><option value="0">Off</option><option value="1">On</option></select></div>
-                  <div><label>Box BG</label><select value={t.ticker?.box ? "1":"0"} onChange={e => { t.ticker!.box = e.target.value==="1"; setP({ ...p }); }}><option value="0">Off</option><option value="1">On</option></select></div>
-                </div>
+
+                <label>Enable Box</label>
+                <select value={t.ticker?.box ? "1":"0"} onChange={e => { t.ticker!.box = e.target.value==="1"; setP({ ...p }); }} style={{marginBottom: '12px'}}>
+                  <option value="0">Off</option>
+                  <option value="1">On</option>
+                </select>
+
+                {t.ticker?.box && (
+                  <>
+                    <label>Box Color</label>
+                    <div className="color-input-group">
+                      <input type="text" value={t.ticker?.boxColor ?? "black"} onChange={e => { t.ticker!.boxColor = e.target.value; setP({ ...p }); }} placeholder="black, #000000" />
+                      <input type="color" value={t.ticker?.boxColor === "black" ? "#000000" : (t.ticker?.boxColor || "#000000")}
+                        onChange={e => { t.ticker!.boxColor = e.target.value; setP({ ...p }); }}
+                        title="Pick box color" />
+                    </div>
+
+                    <label>Box Opacity</label>
+                    <input type="range" min="0" max="1" step="0.05" value={t.ticker?.boxOpacity ?? 0.55}
+                      onChange={e => { t.ticker!.boxOpacity = Number(e.target.value); setP({ ...p }); }}
+                      style={{accentColor: 'var(--accent-primary)'}} />
+                    <div style={{fontSize: '11px', opacity: 0.7, marginTop: '-8px'}}>{((t.ticker?.boxOpacity ?? 0.55) * 100).toFixed(0)}%</div>
+                  </>
+                )}
               </details>
             </div>
           </div>
