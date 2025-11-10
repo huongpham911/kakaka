@@ -819,6 +819,9 @@ export default function App() {
   const handleLogoMouseMove = useCallback((e: React.MouseEvent) => {
     if (!draggedLogoId) return;
 
+    const logo = t.logos.find(l => l.id === draggedLogoId);
+    if (!logo) return;
+
     const previewVideo = e.currentTarget;
     const rect = previewVideo.getBoundingClientRect();
 
@@ -826,13 +829,39 @@ export default function App() {
     const x = e.clientX - rect.left - logoDragOffset.x;
     const y = e.clientY - rect.top - logoDragOffset.y;
 
-    // Clamp to video boundaries
-    const clampedX = Math.max(0, Math.min(x, rect.width - 100)); // 100px approx logo width
-    const clampedY = Math.max(0, Math.min(y, rect.height - 100));
+    // Clamp to video boundaries (use actual logo scale, not hardcoded 100px)
+    const logoWidth = logo.scale ?? 220;
+    const clampedX = Math.max(0, Math.min(x, rect.width - logoWidth));
+    const clampedY = Math.max(0, Math.min(y, rect.height - logoWidth * 0.6)); // Assume height ~60% of width
 
-    // Update logo position
-    updateLogoTrack(draggedLogoId, { x: Math.round(clampedX), y: Math.round(clampedY) });
-  }, [draggedLogoId, logoDragOffset, updateLogoTrack]);
+    // Convert preview coordinates to video coordinates
+    // Preview uses object-fit: contain, so video might be letterboxed
+    const videoAspect = p.width / p.height;
+    const previewAspect = rect.width / rect.height;
+
+    let videoX = clampedX;
+    let videoY = clampedY;
+
+    if (previewAspect > videoAspect) {
+      // Video is letterboxed horizontally (black bars on sides)
+      const videoWidth = rect.height * videoAspect;
+      const offsetX = (rect.width - videoWidth) / 2;
+      videoX = ((clampedX - offsetX) / videoWidth) * p.width;
+      videoY = (clampedY / rect.height) * p.height;
+    } else {
+      // Video is letterboxed vertically (black bars top/bottom)
+      const videoHeight = rect.width / videoAspect;
+      const offsetY = (rect.height - videoHeight) / 2;
+      videoX = (clampedX / rect.width) * p.width;
+      videoY = ((clampedY - offsetY) / videoHeight) * p.height;
+    }
+
+    // Update logo position with video coordinates
+    updateLogoTrack(draggedLogoId, {
+      x: Math.max(0, Math.min(Math.round(videoX), p.width - logoWidth)),
+      y: Math.max(0, Math.min(Math.round(videoY), p.height - logoWidth * 0.6))
+    });
+  }, [draggedLogoId, logoDragOffset, updateLogoTrack, t.logos, p.width, p.height]);
 
   const handleLogoMouseUp = useCallback(() => {
     setDraggedLogoId(null);
@@ -868,8 +897,9 @@ export default function App() {
     if (!timelineDrag.trackId || !timelineDrag.mode) return;
 
     const deltaX = e.clientX - timelineDrag.startX;
-    // Convert pixels to seconds (assuming 100px = 1 second for now, adjust based on zoom)
-    const deltaSeconds = deltaX / 50; // 50px per second
+    // Convert pixels to seconds (adjust based on zoom level)
+    // Base: 50px per second, scaled by timelineZoom (0.5x to 2x)
+    const deltaSeconds = deltaX / (50 * timelineZoom);
 
     const { trackType, trackId, mode, originalStart, originalEnd } = timelineDrag;
 

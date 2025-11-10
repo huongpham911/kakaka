@@ -226,7 +226,9 @@ export function createExporter() {
         }
 
         // Build drawtext parameters
-        let drawtextParams = `fontfile='${ticker.font}':text='${textEsc}':fontsize=${size}:fontcolor=${fontColor}:x=${xFormula}:y=${ty}`;
+        // Convert Windows backslashes to forward slashes for FFmpeg
+        const fontPath = ticker.font.replace(/\\/g, '/');
+        let drawtextParams = `fontfile='${fontPath}':text='${textEsc}':fontsize=${size}:fontcolor=${fontColor}:x=${xFormula}:y=${ty}`;
 
         // Add shadow if enabled
         if (ticker.shadow) {
