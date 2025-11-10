@@ -48,29 +48,10 @@ const defaultProj: Project = {
   duration: 15,
   tracks: {
     video: [],
-    logo: { src: "", pos: "top-right", opacity: 0.9, scale: 220, start: 0 },
-    ticker: {
-      text: "TIN NÓNG: Chữ chạy demo | ",
-      font: "",
-      size: 48,
-      color: "white",
-      y: 1000,
-      speed: 250,
-      box: true,
-      boxColor: "black",
-      boxOpacity: 0.55,
-      textOpacity: 1.0,
-      direction: 'rtl',
-      position: 'footer',
-      bold: false,
-      italic: false,
-      shadow: false,
-      shadowColor: "black",
-      shadowX: 2,
-      shadowY: 2
-    },
-    frame: { enable: true, thickness: 12, color: "white@0.85" },
-    audio: { bgm: { src: "", gain: -6 }, voice: { src: "", gain: 0, duck_bgm: true } }
+    audios: [], // Multiple audio tracks
+    logos: [], // Multiple logo tracks
+    tickers: [], // Multiple ticker tracks
+    frame: { enable: true, thickness: 12, color: "white@0.85" }
   }
 };
 

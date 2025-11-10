@@ -20,6 +20,52 @@ export type TrackItem = {
   out?: number;
 };
 
+// Audio Track - Can have multiple
+export type AudioTrack = {
+  id: string;
+  name: string;
+  src: string;
+  gain?: number;
+  type?: 'bgm' | 'voice'; // bgm or voice-over
+  duckOthers?: boolean; // duck other audio tracks when this plays
+};
+
+// Logo Track - Can have multiple overlays
+export type LogoTrack = {
+  id: string;
+  name: string;
+  src: string;
+  start?: number;
+  end?: number;
+  pos?: string; // top-left, top-right, bottom-left, bottom-right, center
+  opacity?: number;
+  scale?: number;
+};
+
+// Ticker Track - Can have multiple tickers
+export type TickerTrack = {
+  id: string;
+  name: string;
+  text: string;
+  font: string;
+  size?: number;
+  color?: string;
+  y?: number;
+  speed?: number;
+  box?: boolean;
+  boxColor?: string;
+  boxOpacity?: number;
+  textOpacity?: number;
+  direction?: 'rtl' | 'ltr';
+  position?: 'header' | 'footer' | 'custom';
+  bold?: boolean;
+  italic?: boolean;
+  shadow?: boolean;
+  shadowColor?: string;
+  shadowX?: number;
+  shadowY?: number;
+};
+
 export type Project = {
   fps: number;
   width: number;
@@ -27,33 +73,11 @@ export type Project = {
   duration: number;
   tracks: {
     intro?: { src: string; duration?: number };
-    video: VideoClip[];
+    video: VideoClip[]; // Main video track (single track, multiple clips)
     outro?: { src: string; duration?: number };
-    logo?: { src: string; start?: number; end?: number; pos?: string; opacity?: number; scale?: number };
-    ticker?: {
-      text: string;
-      font: string;
-      size?: number;
-      color?: string;
-      y?: number;
-      speed?: number;
-      box?: boolean;
-      boxColor?: string;
-      boxOpacity?: number;
-      textOpacity?: number;
-      direction?: 'rtl' | 'ltr';
-      position?: 'header' | 'footer' | 'custom';
-      bold?: boolean;
-      italic?: boolean;
-      shadow?: boolean;
-      shadowColor?: string;
-      shadowX?: number;
-      shadowY?: number;
-    };
-    frame?: { enable?: boolean; thickness?: number; color?: string };
-    audio?: {
-      bgm?: { src: string; gain?: number };
-      voice?: { src: string; gain?: number; duck_bgm?: boolean };
-    };
+    audios: AudioTrack[]; // Multiple audio tracks
+    logos: LogoTrack[]; // Multiple logo overlay tracks
+    tickers: TickerTrack[]; // Multiple ticker tracks
+    frame?: { enable?: boolean; thickness?: number; color?: string }; // Single frame (border)
   };
 };
