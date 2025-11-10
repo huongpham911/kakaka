@@ -1063,16 +1063,15 @@ export default function App() {
     }
   }
 
-  // Auto-save to localStorage
+  // Auto-save to localStorage (debounced)
   useEffect(() => {
     if (!autoSaveEnabled) return;
 
-    const timer = setInterval(() => {
+    const timer = setTimeout(() => {
       try {
         localStorage.setItem(STORAGE_KEYS.AUTOSAVE, JSON.stringify(p));
         const now = new Date();
         setLastAutoSaveTime(now);
-        console.log("Auto-saved to localStorage at", now.toLocaleTimeString());
 
         // Show subtle toast notification
         showToast('info', '💾 Auto-saved', 1000);
@@ -1082,7 +1081,7 @@ export default function App() {
       }
     }, AUTOSAVE_INTERVAL);
 
-    return () => clearInterval(timer);
+    return () => clearTimeout(timer);
   }, [p, autoSaveEnabled, showToast]);
 
   // Load auto-save on mount
@@ -1536,7 +1535,10 @@ export default function App() {
   }, [selectedClips, disabled, isExporting, activeTab, undo, redo, canUndo, canRedo, saveProject, loadProject, onExport, removeSelectedClips, copySelectedClips, pasteClips, showToast, t.video, togglePlayPause, currentTime, seekVideo, showRecentMenu, videoRef]);
 
   // Get selected clip for editing (first selected clip)
-  const currentClip = selectedClips.length > 0 ? t.video.find(c => c.id === selectedClips[0]) : null;
+  const currentClip = useMemo(
+    () => selectedClips.length > 0 ? t.video.find(c => c.id === selectedClips[0]) : null,
+    [selectedClips, t.video]
+  );
 
   return (
     <>
