@@ -111,6 +111,7 @@ export default function App() {
   const [dragOver, setDragOver] = useState<string | null>(null);
   const [draggedClipId, setDraggedClipId] = useState<string | null>(null);
   const [dragOverClipId, setDragOverClipId] = useState<string | null>(null);
+  const [draggedMedia, setDraggedMedia] = useState<{ type: 'video' | 'image' | 'audio' | 'intro' | 'outro'; path: string } | null>(null);
   const [timelineZoom, setTimelineZoom] = useState<number>(1); // 0.5x to 2x
   const [playheadPosition, setPlayheadPosition] = useState<number>(0); // 0-100%
   const [isDraggingPlayhead, setIsDraggingPlayhead] = useState<boolean>(false);
@@ -878,6 +879,37 @@ export default function App() {
     e.stopPropagation();
     setDragOver(null);
 
+    // Check if dropping from media library first
+    if (draggedMedia) {
+      const { type: mediaType, path } = draggedMedia;
+
+      // Only video media can be dropped to video zones
+      if ((type === 'video' || type === 'intro' || type === 'outro') &&
+          (mediaType === 'video' || mediaType === 'intro' || mediaType === 'outro')) {
+        switch (type) {
+          case 'video':
+            addVideoClip(path);
+            showToast('success', 'Video added to timeline');
+            break;
+          case 'intro':
+            t.intro = { src: path, duration: 3 };
+            setP({ ...p });
+            showToast('success', 'Intro video set');
+            break;
+          case 'outro':
+            t.outro = { src: path, duration: 3 };
+            setP({ ...p });
+            showToast('success', 'Outro video set');
+            break;
+        }
+      } else {
+        showToast('warning', 'Cannot drop this media type here');
+      }
+      setDraggedMedia(null);
+      return;
+    }
+
+    // Otherwise handle OS file drop
     const file = e.dataTransfer.files?.[0];
     if (!file) return;
 
@@ -909,6 +941,16 @@ export default function App() {
       // Use Audio Library → addAudioTrack()
       // Use Font Library → addTickerTrack()
     }
+  };
+
+  // Media drag handlers
+  const handleMediaDragStart = (e: React.DragEvent, type: 'video' | 'image' | 'audio' | 'intro' | 'outro', path: string) => {
+    setDraggedMedia({ type, path });
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  const handleMediaDragEnd = () => {
+    setDraggedMedia(null);
   };
 
   // Logo drag handlers (for dragging logos on preview)
@@ -1679,9 +1721,14 @@ export default function App() {
                 <div className="media-grid">
                   {mediaImages.map((img, idx) => (
                     <div key={idx} className="media-item">
-                      <div className="media-thumbnail" style={{backgroundImage: `url('${img.thumbnail || img.path}')`}}
+                      <div
+                        draggable
+                        onDragStart={(e) => handleMediaDragStart(e, 'image', img.path)}
+                        onDragEnd={handleMediaDragEnd}
+                        className="media-thumbnail"
+                        style={{backgroundImage: `url('${img.thumbnail || img.path}')`}}
                         onClick={() => addLogoTrack(img.path)}
-                        title="Click to add as logo track"
+                        title="Click to add or drag to preview"
                       >
                         <button
                           className="btn-preview-media"
@@ -1721,13 +1768,16 @@ export default function App() {
                   {mediaVideos.map((vid, idx) => (
                     <div key={idx} className="media-item">
                       <div
+                        draggable
+                        onDragStart={(e) => handleMediaDragStart(e, 'video', vid.path)}
+                        onDragEnd={handleMediaDragEnd}
                         className={`media-thumbnail ${!vid.thumbnail ? 'media-thumbnail-video' : ''}`}
                         style={vid.thumbnail ? {backgroundImage: `url('${vid.thumbnail}')`} : undefined}
                         onClick={() => {
                           addVideoClip(vid.path);
                           showToast('success', 'Video added to timeline');
                         }}
-                        title="Click to add to timeline"
+                        title="Click to add or drag to timeline"
                       >
                         {!vid.thumbnail && <div className="media-icon">🎬</div>}
                         <button
@@ -1806,6 +1856,9 @@ export default function App() {
                   {mediaIntros.map((intro, idx) => (
                     <div key={idx} className="media-item">
                       <div
+                        draggable
+                        onDragStart={(e) => handleMediaDragStart(e, 'intro', intro.path)}
+                        onDragEnd={handleMediaDragEnd}
                         className={`media-thumbnail ${!intro.thumbnail ? 'media-thumbnail-video' : ''}`}
                         style={intro.thumbnail ? {backgroundImage: `url('${intro.thumbnail}')`} : undefined}
                         onClick={() => {
@@ -1813,7 +1866,7 @@ export default function App() {
                           setP({ ...p });
                           showToast('success', 'Video set as intro');
                         }}
-                        title="Click to use as intro"
+                        title="Click to use or drag to intro zone"
                       >
                         {!intro.thumbnail && <div className="media-icon">🎞️</div>}
                         <button
@@ -1854,6 +1907,9 @@ export default function App() {
                   {mediaOutros.map((outro, idx) => (
                     <div key={idx} className="media-item">
                       <div
+                        draggable
+                        onDragStart={(e) => handleMediaDragStart(e, 'outro', outro.path)}
+                        onDragEnd={handleMediaDragEnd}
                         className={`media-thumbnail ${!outro.thumbnail ? 'media-thumbnail-video' : ''}`}
                         style={outro.thumbnail ? {backgroundImage: `url('${outro.thumbnail}')`} : undefined}
                         onClick={() => {
@@ -1861,7 +1917,7 @@ export default function App() {
                           setP({ ...p });
                           showToast('success', 'Video set as outro');
                         }}
-                        title="Click to use as outro"
+                        title="Click to use or drag to outro zone"
                       >
                         {!outro.thumbnail && <div className="media-icon">🎞️</div>}
                         <button

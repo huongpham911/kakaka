@@ -1343,7 +1343,7 @@ button:hover { filter:brightness(1.1); }
   background-position: center;
   background-color: var(--bg-primary);
   border-radius: 4px;
-  cursor: pointer;
+  cursor: grab;
   transition: all 0.2s;
   display: flex;
   align-items: center;
@@ -1354,6 +1354,10 @@ button:hover { filter:brightness(1.1); }
 .media-thumbnail:hover {
   opacity: 0.8;
   box-shadow: 0 2px 8px rgba(36, 99, 235, 0.3);
+}
+.media-thumbnail:active {
+  cursor: grabbing;
+  opacity: 0.6;
 }
 
 .media-thumbnail-video,
