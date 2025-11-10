@@ -28,6 +28,7 @@ declare global {
       export: (p: Project) => Promise<string>;
       saveProject: (data: string) => Promise<string | null>;
       loadProject: () => Promise<{ path: string; data: string } | null>;
+      loadProjectFromPath: (filePath: string) => Promise<{ path: string; data: string } | null>;
       onExportProgress: (callback: (data: { percent: number; timemark: string }) => void) => () => void;
     }
   }
@@ -999,21 +1000,27 @@ export default function App() {
 
   // Load project from recent list
   const loadFromRecent = useCallback(async (filePath: string) => {
-    if (!window.electronAPI?.loadProject) {
+    if (!window.electronAPI?.loadProjectFromPath) {
       showToast('error', 'Load not available. Run via Electron.');
       return;
     }
     try {
-      // For now, we'll need to modify the electronAPI to support loading from a specific path
-      // Since we don't have that yet, we'll show a toast
-      showToast('info', `Loading: ${filePath}`);
-      // TODO: Implement loadProjectFromPath in electronAPI
-      setShowRecentMenu(false);
+      const result = await window.electronAPI.loadProjectFromPath(filePath);
+      if (result) {
+        const loadedProject = JSON.parse(result.data);
+        setP(loadedProject);
+        localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, result.path);
+        addToRecentProjects(result.path);
+        showToast('success', `Project loaded: ${result.path.split('/').pop() || result.path.split('\\').pop()}`);
+        setShowRecentMenu(false);
+      }
     } catch (e: any) {
       console.error(e);
       showToast('error', `Load error: ${e?.message || 'Unknown error'}`);
+      // Remove from recent projects if file doesn't exist or is corrupted
+      setRecentProjects(prev => prev.filter(p => p.path !== filePath));
     }
-  }, [showToast]);
+  }, [showToast, addToRecentProjects]);
 
   // Save project
   async function saveProject() {

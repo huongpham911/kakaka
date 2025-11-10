@@ -81,6 +81,17 @@ async function createWindow() {
       throw error;
     }
   });
+
+  // Load project from specific path (for recent projects)
+  ipcMain.handle("load-project-from-path", async (_e, filePath: string) => {
+    try {
+      const data = await fs.readFile(filePath, "utf-8");
+      return { path: filePath, data };
+    } catch (error) {
+      console.error("Load from path error:", error);
+      throw error;
+    }
+  });
 }
 
 app.whenReady().then(() => {
