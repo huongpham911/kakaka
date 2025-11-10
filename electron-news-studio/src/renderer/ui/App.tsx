@@ -1946,16 +1946,6 @@ export default function App() {
                 🔍+
               </button>
             </div>
-
-            <button
-              className="btn-add-track"
-              onClick={() => {
-                showToast('info', 'Add Track feature coming soon! Currently all 5 layers are displayed by default.');
-              }}
-            >
-              <span>➕</span>
-              <span>Add Track</span>
-            </button>
           </div>
         </div>
 
