@@ -115,6 +115,11 @@ export default function App() {
   const [recentProjects, setRecentProjects] = useState<Array<{ path: string; name: string; timestamp: number }>>([]);
   const [showRecentMenu, setShowRecentMenu] = useState<boolean>(false);
 
+  // Media Libraries - Separate storage for each type
+  const [mediaImages, setMediaImages] = useState<string[]>([]);
+  const [mediaVideos, setMediaVideos] = useState<string[]>([]);
+  const [mediaAudio, setMediaAudio] = useState<string[]>([]);
+
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
 
@@ -297,6 +302,77 @@ export default function App() {
         break;
     }
   };
+
+  // Media Library Management
+  // Add images to library
+  const addImagesToLibrary = useCallback((files: FileList) => {
+    const newImages: string[] = [];
+    Array.from(files).forEach(file => {
+      const filePath = (file as any).path ?? file.name;
+      const validation = validateImageFormat(filePath);
+      if (validation.valid) {
+        newImages.push(filePath);
+      } else {
+        showToast('warning', `Skipped ${file.name}: ${validation.error}`);
+      }
+    });
+    if (newImages.length > 0) {
+      setMediaImages(prev => [...prev, ...newImages]);
+      showToast('success', `Added ${newImages.length} image${newImages.length > 1 ? 's' : ''} to library`);
+    }
+  }, [showToast]);
+
+  // Add videos to library
+  const addVideosToLibrary = useCallback((files: FileList) => {
+    const newVideos: string[] = [];
+    Array.from(files).forEach(file => {
+      const filePath = (file as any).path ?? file.name;
+      const validation = validateVideoFormat(filePath);
+      if (validation.valid) {
+        newVideos.push(filePath);
+      } else {
+        showToast('warning', `Skipped ${file.name}: ${validation.error}`);
+      }
+    });
+    if (newVideos.length > 0) {
+      setMediaVideos(prev => [...prev, ...newVideos]);
+      showToast('success', `Added ${newVideos.length} video${newVideos.length > 1 ? 's' : ''} to library`);
+    }
+  }, [showToast]);
+
+  // Add audio files to library
+  const addAudioToLibrary = useCallback((files: FileList) => {
+    const newAudio: string[] = [];
+    Array.from(files).forEach(file => {
+      const filePath = (file as any).path ?? file.name;
+      const validation = validateAudioFormat(filePath);
+      if (validation.valid) {
+        newAudio.push(filePath);
+      } else {
+        showToast('warning', `Skipped ${file.name}: ${validation.error}`);
+      }
+    });
+    if (newAudio.length > 0) {
+      setMediaAudio(prev => [...prev, ...newAudio]);
+      showToast('success', `Added ${newAudio.length} audio file${newAudio.length > 1 ? 's' : ''} to library`);
+    }
+  }, [showToast]);
+
+  // Remove from libraries
+  const removeImageFromLibrary = useCallback((path: string) => {
+    setMediaImages(prev => prev.filter(p => p !== path));
+    showToast('info', 'Image removed from library');
+  }, [showToast]);
+
+  const removeVideoFromLibrary = useCallback((path: string) => {
+    setMediaVideos(prev => prev.filter(p => p !== path));
+    showToast('info', 'Video removed from library');
+  }, [showToast]);
+
+  const removeAudioFromLibrary = useCallback((path: string) => {
+    setMediaAudio(prev => prev.filter(p => p !== path));
+    showToast('info', 'Audio removed from library');
+  }, [showToast]);
 
   // Video clip management
   // Toggle clip selection (for multi-select)
@@ -1184,6 +1260,124 @@ export default function App() {
         {/* ==================== MEDIA TAB ==================== */}
         {activeTab === 'media' && (
           <div className="tab-content">
+            {/* IMAGE LIBRARY */}
+            <div className="section">
+              <h3 className="section-title">📷 Image Library</h3>
+              <input
+                type="file"
+                accept="image/*"
+                multiple
+                onChange={e => e.target.files && addImagesToLibrary(e.target.files)}
+                style={{marginBottom: '12px'}}
+              />
+              {mediaImages.length > 0 ? (
+                <div className="media-grid">
+                  {mediaImages.map((img, idx) => (
+                    <div key={idx} className="media-item">
+                      <div className="media-thumbnail" style={{backgroundImage: `url('${img}')`}}
+                        onClick={() => {
+                          t.logo!.src = img;
+                          setP({ ...p });
+                          showToast('success', 'Image set as logo');
+                        }}
+                        title="Click to use as logo"
+                      />
+                      <div className="media-name">{img.split('/').pop() || img.split('\\').pop()}</div>
+                      <button
+                        className="btn-remove-media"
+                        onClick={() => removeImageFromLibrary(img)}
+                        title="Remove from library"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="media-empty">No images in library. Upload images to get started.</div>
+              )}
+            </div>
+
+            {/* VIDEO LIBRARY */}
+            <div className="section">
+              <h3 className="section-title">🎬 Video Library</h3>
+              <input
+                type="file"
+                accept="video/*"
+                multiple
+                onChange={e => e.target.files && addVideosToLibrary(e.target.files)}
+                style={{marginBottom: '12px'}}
+              />
+              {mediaVideos.length > 0 ? (
+                <div className="media-grid">
+                  {mediaVideos.map((vid, idx) => (
+                    <div key={idx} className="media-item">
+                      <div className="media-thumbnail media-thumbnail-video"
+                        onClick={() => {
+                          addVideoClip(vid);
+                          showToast('success', 'Video added to timeline');
+                        }}
+                        title="Click to add to timeline"
+                      >
+                        <div className="media-icon">🎬</div>
+                      </div>
+                      <div className="media-name">{vid.split('/').pop() || vid.split('\\').pop()}</div>
+                      <button
+                        className="btn-remove-media"
+                        onClick={() => removeVideoFromLibrary(vid)}
+                        title="Remove from library"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="media-empty">No videos in library. Upload videos to get started.</div>
+              )}
+            </div>
+
+            {/* AUDIO LIBRARY */}
+            <div className="section">
+              <h3 className="section-title">🎵 Audio Library</h3>
+              <input
+                type="file"
+                accept="audio/*"
+                multiple
+                onChange={e => e.target.files && addAudioToLibrary(e.target.files)}
+                style={{marginBottom: '12px'}}
+              />
+              {mediaAudio.length > 0 ? (
+                <div className="media-grid">
+                  {mediaAudio.map((audio, idx) => (
+                    <div key={idx} className="media-item">
+                      <div className="media-thumbnail media-thumbnail-audio"
+                        onClick={() => {
+                          // Show menu to choose BGM or Voice
+                          const choice = confirm('Use as BGM? (Cancel for Voice-over)');
+                          if (choice) {
+                            t.audio!.bgm!.src = audio;
+                            showToast('success', 'Audio set as BGM');
+                          } else {
+                            t.audio!.voice!.src = audio;
+                            showToast('success', 'Audio set as Voice-over');
+                          }
+                          setP({ ...p });
+                        }}
+                        title="Click to use (BGM or Voice)"
+                      >
+                        <div className="media-icon">🎵</div>
+                      </div>
+                      <div className="media-name">{audio.split('/').pop() || audio.split('\\').pop()}</div>
+                      <button
+                        className="btn-remove-media"
+                        onClick={() => removeAudioFromLibrary(audio)}
+                        title="Remove from library"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="media-empty">No audio in library. Upload audio files to get started.</div>
+              )}
+            </div>
+
             {/* Selected Clip Editor */}
             {currentClip && (
               <div className="section">
