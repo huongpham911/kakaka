@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useCallback } from "react";
+import React, { useMemo, useState, useEffect, useCallback, Suspense, lazy } from "react";
 import type { Project, VideoClip, TransitionType, AudioTrack, LogoTrack, TickerTrack } from "../../shared/types";
 import {
   RESOLUTIONS,
@@ -18,9 +18,11 @@ import {
   isVideoFile
 } from "../../shared/validation";
 import { ToastContainer, type Toast, type ToastType } from "./Toast";
-import { ConfirmModal } from "./Modal";
-import { ClipEditor } from "./ClipEditor";
 import { useHistory } from "../hooks/useHistory";
+
+// Lazy load heavy components
+const ConfirmModal = lazy(() => import("./Modal").then(m => ({ default: m.ConfirmModal })));
+const ClipEditor = lazy(() => import("./ClipEditor").then(m => ({ default: m.ClipEditor })));
 
 declare global {
   interface Window {
@@ -2804,17 +2806,19 @@ export default function App() {
       {/* Toast Notifications */}
       <ToastContainer toasts={toasts} onClose={removeToast} />
 
-      {/* Confirm Modal */}
-      <ConfirmModal
-        isOpen={confirmModal.isOpen}
-        onClose={closeConfirm}
-        onConfirm={confirmModal.onConfirm}
-        title={confirmModal.title}
-        message={confirmModal.message}
-        confirmText="Restore"
-        cancelText="Skip"
-        type="info"
-      />
+      {/* Confirm Modal - Lazy loaded */}
+      <Suspense fallback={<div />}>
+        <ConfirmModal
+          isOpen={confirmModal.isOpen}
+          onClose={closeConfirm}
+          onConfirm={confirmModal.onConfirm}
+          title={confirmModal.title}
+          message={confirmModal.message}
+          confirmText="Restore"
+          cancelText="Skip"
+          type="info"
+        />
+      </Suspense>
     </>
   );
 }
