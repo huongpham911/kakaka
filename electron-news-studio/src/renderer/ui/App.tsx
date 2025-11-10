@@ -47,6 +47,18 @@ function formatTime(seconds: number): string {
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
+// Helper function to convert local path to file:// URL for Electron
+function pathToFileURL(path: string): string {
+  // If already a URL, return as is
+  if (path.startsWith('http://') || path.startsWith('https://') || path.startsWith('file://')) {
+    return path;
+  }
+  // Convert Windows backslashes to forward slashes
+  const normalized = path.replace(/\\/g, '/');
+  // Add file:// protocol
+  return `file://${normalized.startsWith('/') ? '' : '/'}${normalized}`;
+}
+
 // Helper function to generate video thumbnail
 async function generateVideoThumbnail(videoPath: string): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -83,12 +95,14 @@ async function generateVideoThumbnail(videoPath: string): Promise<string> {
       }
     };
 
-    video.onerror = () => {
+    video.onerror = (e) => {
+      console.error('Video load error:', e);
       reject(new Error('Failed to load video'));
       video.remove();
     };
 
-    video.src = videoPath;
+    // Use file:// URL for Electron
+    video.src = pathToFileURL(videoPath);
   });
 }
 
@@ -374,8 +388,8 @@ export default function App() {
       const filePath = (file as any).path ?? file.name;
       const validation = validateImageFormat(filePath);
       if (validation.valid) {
-        // For images, use the image itself as the thumbnail
-        newImages.push({ path: filePath, thumbnail: filePath });
+        // For images, use file:// URL as thumbnail
+        newImages.push({ path: filePath, thumbnail: pathToFileURL(filePath) });
       } else {
         showToast('warning', `Skipped ${file.name}: ${validation.error}`);
       }
@@ -1726,7 +1740,7 @@ export default function App() {
                         onDragStart={(e) => handleMediaDragStart(e, 'image', img.path)}
                         onDragEnd={handleMediaDragEnd}
                         className="media-thumbnail"
-                        style={{backgroundImage: `url('${img.thumbnail || img.path}')`}}
+                        style={{backgroundImage: `url('${img.thumbnail ? img.thumbnail : pathToFileURL(img.path)}')`}}
                         onClick={() => addLogoTrack(img.path)}
                         title="Click to add or drag to preview"
                       >
@@ -2949,15 +2963,25 @@ export default function App() {
             </div>
             {previewModal.type === 'video' ? (
               <video
-                src={previewModal.src}
+                key={previewModal.src}
+                src={pathToFileURL(previewModal.src)}
                 controls
                 autoPlay
-                style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }}
+                onError={(e) => {
+                  console.error('Preview video error:', e);
+                  showToast('error', 'Failed to load video preview');
+                }}
+                style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px', background: '#000' }}
               />
             ) : (
               <img
-                src={previewModal.src}
+                key={previewModal.src}
+                src={pathToFileURL(previewModal.src)}
                 alt="Preview"
+                onError={(e) => {
+                  console.error('Preview image error:', e);
+                  showToast('error', 'Failed to load image preview');
+                }}
                 style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px' }}
               />
             )}
