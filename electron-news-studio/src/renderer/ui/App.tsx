@@ -24,6 +24,9 @@ import { useHistory } from "../hooks/useHistory";
 const ConfirmModal = lazy(() => import("./Modal").then(m => ({ default: m.ConfirmModal })));
 const ClipEditor = lazy(() => import("./ClipEditor").then(m => ({ default: m.ClipEditor })));
 
+// Import new components
+import { RecentProjectsMenu, type RecentProject } from "./RecentProjectsMenu";
+
 declare global {
   interface Window {
     electronAPI?: {
@@ -96,7 +99,7 @@ export default function App() {
     message: string;
     onConfirm: () => void;
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
-  const [recentProjects, setRecentProjects] = useState<Array<{ path: string; name: string; timestamp: number }>>([]);
+  const [recentProjects, setRecentProjects] = useState<RecentProject[]>([]);
   const [showRecentMenu, setShowRecentMenu] = useState<boolean>(false);
 
   // Media Libraries - Separate folders for each type
@@ -2281,97 +2284,11 @@ export default function App() {
 
           {/* Recent Projects Dropdown Menu */}
           {showRecentMenu && (
-            <div
-              style={{
-                position: 'absolute',
-                top: '100%',
-                left: 0,
-                marginTop: '4px',
-                minWidth: '300px',
-                maxWidth: '400px',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border)',
-                borderRadius: '8px',
-                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.3)',
-                zIndex: 1000,
-                padding: '8px 0'
-              }}
-            >
-              <div style={{
-                padding: '8px 12px',
-                fontSize: '13px',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-                borderBottom: '1px solid var(--border)'
-              }}>
-                Recent Projects
-              </div>
-
-              {recentProjects.length === 0 ? (
-                <div style={{
-                  padding: '16px 12px',
-                  fontSize: '13px',
-                  color: 'var(--text-secondary)',
-                  textAlign: 'center',
-                  opacity: 0.7
-                }}>
-                  No recent projects
-                </div>
-              ) : (
-                <>
-                  {recentProjects.map((project, idx) => (
-                    <div
-                      key={project.path}
-                      onClick={() => loadFromRecent(project.path)}
-                      style={{
-                        padding: '10px 12px',
-                        cursor: 'pointer',
-                        fontSize: '13px',
-                        borderBottom: idx < recentProjects.length - 1 ? '1px solid var(--border)' : 'none',
-                        transition: 'background 0.2s'
-                      }}
-                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--bg-hover)'}
-                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                    >
-                      <div style={{ fontWeight: '500', color: 'var(--text-primary)', marginBottom: '4px' }}>
-                        📄 {project.name}
-                      </div>
-                      <div style={{
-                        fontSize: '11px',
-                        color: 'var(--text-secondary)',
-                        opacity: 0.7,
-                        whiteSpace: 'nowrap',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis'
-                      }}>
-                        {project.path}
-                      </div>
-                      <div style={{ fontSize: '10px', color: 'var(--text-secondary)', opacity: 0.6, marginTop: '2px' }}>
-                        {new Date(project.timestamp).toLocaleString()}
-                      </div>
-                    </div>
-                  ))}
-
-                  <div
-                    onClick={clearRecentProjects}
-                    style={{
-                      padding: '10px 12px',
-                      cursor: 'pointer',
-                      fontSize: '13px',
-                      color: '#ef4444',
-                      fontWeight: '500',
-                      marginTop: '4px',
-                      borderTop: '1px solid var(--border)',
-                      transition: 'background 0.2s'
-                    }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    🗑️ Clear History
-                  </div>
-                </>
-              )}
-            </div>
+            <RecentProjectsMenu
+              projects={recentProjects}
+              onLoadProject={loadFromRecent}
+              onClearHistory={clearRecentProjects}
+            />
           )}
         </div>
 
