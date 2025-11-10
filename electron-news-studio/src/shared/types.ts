@@ -25,6 +25,8 @@ export type AudioTrack = {
   id: string;
   name: string;
   src: string;
+  start?: number; // Start time in seconds (for timeline positioning)
+  end?: number; // End time in seconds (for timeline positioning)
   gain?: number;
   type?: 'bgm' | 'voice'; // bgm or voice-over
   duckOthers?: boolean; // duck other audio tracks when this plays
@@ -50,6 +52,8 @@ export type TickerTrack = {
   name: string;
   text: string;
   font: string;
+  start?: number; // Start time in seconds (for timeline positioning)
+  end?: number; // End time in seconds (for timeline positioning)
   size?: number;
   color?: string;
   y?: number;

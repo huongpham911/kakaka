@@ -108,6 +108,23 @@ export default function App() {
   const [draggedLogoId, setDraggedLogoId] = useState<string | null>(null);
   const [logoDragOffset, setLogoDragOffset] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
+  // Timeline track drag state (for resizing/moving tracks in timeline)
+  const [timelineDrag, setTimelineDrag] = useState<{
+    trackId: string | null;
+    trackType: 'logo' | 'audio' | 'ticker' | null;
+    mode: 'resize-start' | 'resize-end' | 'move' | null;
+    startX: number;
+    originalStart: number;
+    originalEnd: number;
+  }>({
+    trackId: null,
+    trackType: null,
+    mode: null,
+    startX: 0,
+    originalStart: 0,
+    originalEnd: 0
+  });
+
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
 
@@ -819,6 +836,81 @@ export default function App() {
 
   const handleLogoMouseUp = useCallback(() => {
     setDraggedLogoId(null);
+  }, []);
+
+  // Timeline track drag handlers (for resizing/moving tracks in timeline)
+  const handleTimelineTrackMouseDown = useCallback((
+    e: React.MouseEvent,
+    trackId: string,
+    trackType: 'logo' | 'audio' | 'ticker',
+    mode: 'resize-start' | 'resize-end' | 'move'
+  ) => {
+    e.stopPropagation();
+
+    let track: any;
+    if (trackType === 'logo') track = t.logos.find(l => l.id === trackId);
+    else if (trackType === 'audio') track = t.audios.find(a => a.id === trackId);
+    else if (trackType === 'ticker') track = t.tickers.find(tk => tk.id === trackId);
+
+    if (!track) return;
+
+    setTimelineDrag({
+      trackId,
+      trackType,
+      mode,
+      startX: e.clientX,
+      originalStart: track.start ?? 0,
+      originalEnd: track.end ?? p.duration
+    });
+  }, [t.logos, t.audios, t.tickers, p.duration]);
+
+  const handleTimelineTrackMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!timelineDrag.trackId || !timelineDrag.mode) return;
+
+    const deltaX = e.clientX - timelineDrag.startX;
+    // Convert pixels to seconds (assuming 100px = 1 second for now, adjust based on zoom)
+    const deltaSeconds = deltaX / 50; // 50px per second
+
+    const { trackType, trackId, mode, originalStart, originalEnd } = timelineDrag;
+
+    let newStart = originalStart;
+    let newEnd = originalEnd;
+
+    if (mode === 'resize-start') {
+      newStart = Math.max(0, originalStart + deltaSeconds);
+      newStart = Math.min(newStart, originalEnd - 0.5); // Min 0.5s duration
+    } else if (mode === 'resize-end') {
+      newEnd = Math.min(p.duration, originalEnd + deltaSeconds);
+      newEnd = Math.max(newEnd, originalStart + 0.5); // Min 0.5s duration
+    } else if (mode === 'move') {
+      const duration = originalEnd - originalStart;
+      newStart = Math.max(0, originalStart + deltaSeconds);
+      newEnd = newStart + duration;
+      if (newEnd > p.duration) {
+        newEnd = p.duration;
+        newStart = newEnd - duration;
+      }
+    }
+
+    // Update track based on type
+    if (trackType === 'logo') {
+      updateLogoTrack(trackId, { start: Math.round(newStart * 10) / 10, end: Math.round(newEnd * 10) / 10 });
+    } else if (trackType === 'audio') {
+      updateAudioTrack(trackId, { start: Math.round(newStart * 10) / 10, end: Math.round(newEnd * 10) / 10 });
+    } else if (trackType === 'ticker') {
+      updateTickerTrack(trackId, { start: Math.round(newStart * 10) / 10, end: Math.round(newEnd * 10) / 10 });
+    }
+  }, [timelineDrag, p.duration, updateLogoTrack, updateAudioTrack, updateTickerTrack]);
+
+  const handleTimelineTrackMouseUp = useCallback(() => {
+    setTimelineDrag({
+      trackId: null,
+      trackType: null,
+      mode: null,
+      startX: 0,
+      originalStart: 0,
+      originalEnd: 0
+    });
   }, []);
 
   async function onExport() {
