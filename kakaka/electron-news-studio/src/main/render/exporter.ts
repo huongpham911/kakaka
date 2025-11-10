@@ -58,14 +58,10 @@ export function createExporter() {
       inputIdx++;
     }
 
-    // Multiple logos, audios come after all video inputs
-    const logoStartIdx = inputIdx;
-    const logos = tracks.logos || [];
-    logos.forEach(() => inputIdx++);
-
-    const audioStartIdx = inputIdx;
-    const audios = tracks.audios || [];
-    audios.forEach(() => inputIdx++);
+    // Logo, BGM, Voice come after all video inputs
+    const logoIdx = tracks.logo?.src ? inputIdx++ : -1;
+    const bgmIdx = tracks.audio?.bgm?.src ? inputIdx++ : -1;
+    const voiceIdx = tracks.audio?.voice?.src ? inputIdx++ : -1;
 
     // Step 1: Process intro (if exists)
     if (hasIntro) {
@@ -142,43 +138,19 @@ export function createExporter() {
       vf.push(`[${segments.join('][')}]concat=n=${segments.length}:v=1:a=0[base]`);
     }
 
-    // Step 5: Apply logo overlays (multiple)
+    // Step 5: Apply logo overlay
     let currentLabel = 'base';
-    if (logos.length > 0) {
-      logos.forEach((logo: any, i: number) => {
-        // Use custom x, y if available, otherwise use preset position
-        let overlayX: string;
-        let overlayY: string;
-        if (logo.x !== undefined && logo.y !== undefined) {
-          // Custom position (pixels from left/top)
-          overlayX = String(logo.x);
-          overlayY = String(logo.y);
-        } else {
-          // Preset position (top-left, top-right, etc)
-          const pos = posExpr(logo.pos || "top-right");
-          overlayX = pos.x;
-          overlayY = pos.y;
-        }
-
-        const op  = logo.opacity ?? 0.9;
-        const lsc = logo.scale ?? 220;
-        const inputIdx = logoStartIdx + i;
-        const outputLabel = `v1_${i}`;
-
-        vf.push(
-          `[${inputIdx}:v]scale=${lsc}:-1,format=rgba,colorchannelmixer=aa=${op}[lg${i}]`,
-          `[${currentLabel}][lg${i}]overlay=${overlayX}:${overlayY}:enable='between(t,${logo.start ?? 0},${logo.end ?? duration})'[${outputLabel}]`
-        );
-        currentLabel = outputLabel;
-      });
-    }
-
-    // Ensure we have v1 label for next step
-    if (currentLabel === 'base') {
-      vf.push(`[base]copy[v1]`);
+    if (logoIdx >= 0) {
+      const pos = posExpr(tracks.logo.pos || "top-right");
+      const op  = tracks.logo.opacity ?? 0.9;
+      const lsc = tracks.logo.scale ?? 220;
+      vf.push(
+        `[${logoIdx}:v]scale=${lsc}:-1,format=rgba,colorchannelmixer=aa=${op}[lg]`,
+        `[base][lg]overlay=${pos.x}:${pos.y}:enable='between(t,${tracks.logo.start ?? 0},${tracks.logo.end ?? duration})'[v1]`
+      );
       currentLabel = 'v1';
     } else {
-      vf.push(`[${currentLabel}]copy[v1]`);
+      vf.push(`[base]copy[v1]`);
       currentLabel = 'v1';
     }
 
@@ -198,139 +170,90 @@ export function createExporter() {
       currentLabel = 'v5';
     }
 
-    // Step 7: Apply tickers (multiple)
-    const tickers = tracks.tickers || [];
-    if (tickers.length > 0) {
-      tickers.forEach((ticker: any, i: number) => {
-        const ty   = ticker.y ?? (height - 80);
-        const spd  = ticker.speed ?? 250;
-        const size = ticker.size ?? 48;
-        const col  = ticker.color ?? "white";
-        const dir  = ticker.direction ?? 'rtl';
-        const textOp = ticker.textOpacity ?? 1.0;
-        const textEsc = String(ticker.text).replace(/:/g, "\\:").replace(/'/g, "\\\\'");
+    // Step 7: Apply ticker
+    if (tracks.ticker?.text && tracks.ticker?.font) {
+      const ticker = tracks.ticker;
+      const ty   = ticker.y ?? (height - 80);
+      const spd  = ticker.speed ?? 250;
+      const size = ticker.size ?? 48;
+      const col  = ticker.color ?? "white";
+      const dir  = ticker.direction ?? 'rtl';
+      const textOp = ticker.textOpacity ?? 1.0;
+      const textEsc = String(ticker.text).replace(/:/g, "\\:").replace(/'/g, "\\\\'");
 
-        // Direction formulas:
-        // RTL (right to left): x=w-mod(t*speed, tw+w) - starts from right, moves left
-        // LTR (left to right): x=mod(t*speed, tw+w)-tw - starts from left, moves right
-        const xFormula = dir === 'rtl'
-          ? `w-mod(t*${spd}\\,tw+w)`
-          : `mod(t*${spd}\\,tw+w)-tw`;
+      // Direction formulas:
+      // RTL (right to left): x=w-mod(t*speed, tw+w) - starts from right, moves left
+      // LTR (left to right): x=mod(t*speed, tw+w)-tw - starts from left, moves right
+      const xFormula = dir === 'rtl'
+        ? `w-mod(t*${spd}\\,tw+w)`
+        : `mod(t*${spd}\\,tw+w)-tw`;
 
-        // Build font color with opacity (convert color to RGBA if needed)
-        let fontColor = col;
-        if (textOp < 1.0) {
-          // If color is a name or hex, convert to rgba with alpha
-          // For simplicity, append @alpha notation which FFmpeg supports
-          fontColor = `${col}@${textOp.toFixed(2)}`;
-        }
+      // Build font color with opacity (convert color to RGBA if needed)
+      let fontColor = col;
+      if (textOp < 1.0) {
+        // If color is a name or hex, convert to rgba with alpha
+        // For simplicity, append @alpha notation which FFmpeg supports
+        fontColor = `${col}@${textOp.toFixed(2)}`;
+      }
 
-        // Build drawtext parameters
-        // Convert Windows backslashes to forward slashes for FFmpeg
-        const fontPath = ticker.font.replace(/\\/g, '/');
-        let drawtextParams = `fontfile='${fontPath}':text='${textEsc}':fontsize=${size}:fontcolor=${fontColor}:x=${xFormula}:y=${ty}`;
+      // Build drawtext parameters
+      let drawtextParams = `fontfile='${ticker.font}':text='${textEsc}':fontsize=${size}:fontcolor=${fontColor}:x=${xFormula}:y=${ty}`;
 
-        // Add shadow if enabled
-        if (ticker.shadow) {
-          const shadowCol = ticker.shadowColor ?? "black";
-          const shadowX = ticker.shadowX ?? 2;
-          const shadowY = ticker.shadowY ?? 2;
-          drawtextParams += `:shadowcolor=${shadowCol}:shadowx=${shadowX}:shadowy=${shadowY}`;
-        }
+      // Add shadow if enabled
+      if (ticker.shadow) {
+        const shadowCol = ticker.shadowColor ?? "black";
+        const shadowX = ticker.shadowX ?? 2;
+        const shadowY = ticker.shadowY ?? 2;
+        drawtextParams += `:shadowcolor=${shadowCol}:shadowx=${shadowX}:shadowy=${shadowY}`;
+      }
 
-        // Add box background if enabled
-        if (ticker.box) {
-          const boxCol = ticker.boxColor ?? "black";
-          const boxOp = ticker.boxOpacity ?? 0.55;
-          const boxColorWithAlpha = `${boxCol}@${boxOp.toFixed(2)}`;
-          drawtextParams += `:box=1:boxcolor=${boxColorWithAlpha}:boxborderw=20`;
-        }
+      // Add box background if enabled
+      if (ticker.box) {
+        const boxCol = ticker.boxColor ?? "black";
+        const boxOp = ticker.boxOpacity ?? 0.55;
+        const boxColorWithAlpha = `${boxCol}@${boxOp.toFixed(2)}`;
+        drawtextParams += `:box=1:boxcolor=${boxColorWithAlpha}:boxborderw=20`;
+      }
 
-        // Add timing (enable between start and end)
-        const tickerStart = ticker.start ?? 0;
-        const tickerEnd = ticker.end ?? duration;
-        drawtextParams += `:enable='between(t,${tickerStart},${tickerEnd})'`;
+      // Note: FFmpeg drawtext doesn't directly support bold/italic via parameters
+      // These would need to be handled by using bold/italic font variants
+      // For now, we'll add a comment noting this limitation
+      // Users should load appropriate font files (e.g., Arial-Bold.ttf, Arial-Italic.ttf)
 
-        const outputLabel = i === tickers.length - 1 ? 'vout' : `vtick${i}`;
-        vf.push(`[${currentLabel}]drawtext=${drawtextParams}[${outputLabel}]`);
-        currentLabel = outputLabel;
-      });
+      vf.push(`[${currentLabel}]drawtext=${drawtextParams}[vout]`);
     } else {
       vf.push(`[${currentLabel}]copy[vout]`);
     }
 
-    // Step 8: Audio chain (multiple tracks)
+    // Step 8: Audio chain
     const af: string[] = [];
 
-    if (audios.length === 0) {
-      // No audio
-    } else if (audios.length === 1) {
-      // Single audio track - simple gain with timing
-      const audio = audios[0];
-      const gain = audio.gain ?? (audio.type === 'voice' ? 0 : -6);
-      const inputIdx = audioStartIdx;
-      const audioStart = audio.start ?? 0;
-      const audioEnd = audio.end ?? duration;
-      const audioDur = audioEnd - audioStart;
+    const aIns: string[] = [];
+    if (voiceIdx >= 0) aIns.push(`${voiceIdx}:a`);
+    if (bgmIdx >= 0) aIns.push(`${bgmIdx}:a`);
 
-      // Apply delay (start time), trim (duration), and volume
-      if (audioStart > 0 || audioEnd < duration) {
-        af.push(`[${inputIdx}:a]adelay=${Math.round(audioStart * 1000)}|${Math.round(audioStart * 1000)},atrim=0:${audioDur},volume=${asVolDb(gain)}[aout]`);
-      } else {
-        af.push(`[${inputIdx}:a]volume=${asVolDb(gain)}[aout]`);
-      }
+    if (aIns.length === 0) {
+      // no audio
+    } else if (aIns.length === 1) {
+      const isVoice = voiceIdx >= 0;
+      const gain = isVoice ? (tracks.audio.voice.gain ?? 0) : (tracks.audio.bgm.gain ?? -6);
+      af.push(`[${aIns[0]}]volume=${asVolDb(gain)}[aout]`);
     } else {
-      // Multiple audio tracks - need mixing
-      // Separate voice tracks (with ducking) from other tracks
-      const voiceTracks = audios.filter((a: any) => a.duckOthers);
-      const otherTracks = audios.filter((a: any) => !a.duckOthers);
-
-      // Apply delay, trim, and gain to all tracks first
-      audios.forEach((audio: any, i: number) => {
-        const gain = audio.gain ?? (audio.type === 'voice' ? 0 : -6);
-        const inputIdx = audioStartIdx + i;
-        const audioStart = audio.start ?? 0;
-        const audioEnd = audio.end ?? duration;
-        const audioDur = audioEnd - audioStart;
-
-        // Apply timing if custom start/end is set
-        if (audioStart > 0 || audioEnd < duration) {
-          af.push(`[${inputIdx}:a]adelay=${Math.round(audioStart * 1000)}|${Math.round(audioStart * 1000)},atrim=0:${audioDur},volume=${asVolDb(gain)}[a${i}]`);
-        } else {
-          af.push(`[${inputIdx}:a]volume=${asVolDb(gain)}[a${i}]`);
-        }
-      });
-
-      if (voiceTracks.length > 0 && otherTracks.length > 0) {
-        // Mix other tracks first
-        const otherIndices = audios
-          .map((a: any, i: number) => !a.duckOthers ? i : -1)
-          .filter((i: number) => i >= 0);
-        const voiceIndices = audios
-          .map((a: any, i: number) => a.duckOthers ? i : -1)
-          .filter((i: number) => i >= 0);
-
-        if (otherIndices.length === 1) {
-          af.push(`[a${otherIndices[0]}]acopy[bgm_mix]`);
-        } else {
-          const bgmInputs = otherIndices.map((i: number) => `[a${i}]`).join('');
-          af.push(`${bgmInputs}amix=inputs=${otherIndices.length}:dropout_transition=0:duration=longest[bgm_mix]`);
-        }
-
-        // Mix voice tracks
-        if (voiceIndices.length === 1) {
-          af.push(`[a${voiceIndices[0]}]acopy[voice_mix]`);
-        } else {
-          const voiceInputs = voiceIndices.map((i: number) => `[a${i}]`).join('');
-          af.push(`${voiceInputs}amix=inputs=${voiceIndices.length}:dropout_transition=0:duration=longest[voice_mix]`);
-        }
-
-        // Apply ducking: voice ducks bgm
-        af.push(`[bgm_mix][voice_mix]sidechaincompress=threshold=0.03:ratio=10:attack=5:release=200:makeup=4[aout]`);
+      const duck = !!tracks.audio.voice?.duck_bgm;
+      const vGain = tracks.audio.voice?.gain ?? 0;
+      const bGain = tracks.audio.bgm?.gain ?? -6;
+      if (duck && voiceIdx >= 0 && bgmIdx >= 0) {
+        af.push(
+          `[${bgmIdx}:a]volume=${asVolDb(bGain)}[bgm]`,
+          `[${voiceIdx}:a]volume=${asVolDb(vGain)}[vo]`,
+          `[bgm][vo]sidechaincompress=threshold=0.03:ratio=10:attack=5:release=200:makeup=4[aout]`
+        );
       } else {
-        // No ducking needed, just mix all tracks
-        const allInputs = audios.map((_: any, i: number) => `[a${i}]`).join('');
-        af.push(`${allInputs}amix=inputs=${audios.length}:dropout_transition=0:duration=longest,volume=1.0[aout]`);
+        af.push(
+          `[${bgmIdx}:a]volume=${asVolDb(bGain)}[bgm]`,
+          `[${voiceIdx}:a]volume=${asVolDb(vGain)}[vo]`,
+          `[bgm][vo]amix=inputs=2:dropout_transition=0:duration=longest,volume=1.0[aout]`
+        );
       }
     }
 
@@ -344,8 +267,9 @@ export function createExporter() {
       if (hasIntro) pipeline.input(tracks.intro.src);
       videoClips.forEach((clip: any) => pipeline.input(clip.src));
       if (hasOutro) pipeline.input(tracks.outro.src);
-      logos.forEach((logo: any) => pipeline.input(logo.src));
-      audios.forEach((audio: any) => pipeline.input(audio.src));
+      if (logoIdx >= 0) pipeline.input(tracks.logo.src);
+      if (bgmIdx >= 0) pipeline.input(tracks.audio.bgm.src);
+      if (voiceIdx >= 0) pipeline.input(tracks.audio.voice.src);
 
       pipeline
         .outputOptions(["-pix_fmt yuv420p"])

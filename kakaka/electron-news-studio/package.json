@@ -4,7 +4,6 @@
   "private": true,
   "description": "Electron + React timeline studio: logo overlay, music/voice, frame, news ticker, FFmpeg export.",
   "main": "dist/main/main.js",
-  "type": "module",
   "scripts": {
     "dev": "concurrently -k -n VITE,ELECTRON \"vite\" \"cross-env VITE_DEV_SERVER=true electron .\"",
     "build:renderer": "vite build",
@@ -35,6 +34,7 @@
     "electron-updater": "^6.3.9"
   },
   "devDependencies": {
+    "@types/fluent-ffmpeg": "^2.1.28",
     "@types/node": "^22.7.5",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",

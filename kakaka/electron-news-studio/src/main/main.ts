@@ -4,6 +4,8 @@ import fs from "node:fs/promises";
 import { createExporter } from "./render/exporter.js";
 
 const isDev = !!process.env.VITE_DEV_SERVER;
+const devPort = Number(process.env.VITE_DEV_SERVER_PORT ?? "4000");
+const devHost = process.env.VITE_DEV_SERVER_HOST ?? "localhost";
 
 let win: BrowserWindow | null = null;
 
@@ -18,7 +20,7 @@ async function createWindow() {
     }
   });
 
-  const devURL = "http://localhost:5173";
+  const devURL = `http://${devHost}:${devPort}`;
   const prodURL = path.join(app.getAppPath(), "dist", "renderer", "index.html");
   if (isDev) {
     await win.loadURL(devURL);
@@ -78,17 +80,6 @@ async function createWindow() {
       return { path: result.filePaths[0], data };
     } catch (error) {
       console.error("Load error:", error);
-      throw error;
-    }
-  });
-
-  // Load project from specific path (for recent projects)
-  ipcMain.handle("load-project-from-path", async (_e, filePath: string) => {
-    try {
-      const data = await fs.readFile(filePath, "utf-8");
-      return { path: filePath, data };
-    } catch (error) {
-      console.error("Load from path error:", error);
       throw error;
     }
   });

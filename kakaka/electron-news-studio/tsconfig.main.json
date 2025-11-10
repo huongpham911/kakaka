@@ -2,13 +2,14 @@
   "compilerOptions": {
     "target": "ES2022",
     "outDir": "dist/main",
-    "module": "ESNext",
+    "module": "CommonJS",
     "moduleResolution": "Node",
-    "lib": ["ES2022"],
+    "lib": ["ES2022", "DOM"],
     "esModuleInterop": true,
     "strict": true,
     "types": ["node"],
-    "rootDir": "src/main"
+    "rootDir": "src/main",
+    "allowJs": true
   },
   "include": ["src/main/**/*"]
 }
