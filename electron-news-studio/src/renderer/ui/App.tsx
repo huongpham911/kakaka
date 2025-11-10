@@ -115,10 +115,13 @@ export default function App() {
   const [recentProjects, setRecentProjects] = useState<Array<{ path: string; name: string; timestamp: number }>>([]);
   const [showRecentMenu, setShowRecentMenu] = useState<boolean>(false);
 
-  // Media Libraries - Separate storage for each type
-  const [mediaImages, setMediaImages] = useState<string[]>([]);
-  const [mediaVideos, setMediaVideos] = useState<string[]>([]);
-  const [mediaAudio, setMediaAudio] = useState<string[]>([]);
+  // Media Libraries - Separate folders for each type
+  const [mediaImages, setMediaImages] = useState<string[]>([]); // For logos
+  const [mediaVideos, setMediaVideos] = useState<string[]>([]); // For timeline clips
+  const [mediaIntros, setMediaIntros] = useState<string[]>([]); // For intro videos
+  const [mediaOutros, setMediaOutros] = useState<string[]>([]); // For outro videos
+  const [mediaAudio, setMediaAudio] = useState<string[]>([]); // For BGM/Voice
+  const [mediaFonts, setMediaFonts] = useState<string[]>([]); // For ticker fonts
 
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
@@ -372,6 +375,76 @@ export default function App() {
   const removeAudioFromLibrary = useCallback((path: string) => {
     setMediaAudio(prev => prev.filter(p => p !== path));
     showToast('info', 'Audio removed from library');
+  }, [showToast]);
+
+  // Add intro videos to library
+  const addIntrosToLibrary = useCallback((files: FileList) => {
+    const newIntros: string[] = [];
+    Array.from(files).forEach(file => {
+      const filePath = (file as any).path ?? file.name;
+      const validation = validateVideoFormat(filePath);
+      if (validation.valid) {
+        newIntros.push(filePath);
+      } else {
+        showToast('warning', `Skipped ${file.name}: ${validation.error}`);
+      }
+    });
+    if (newIntros.length > 0) {
+      setMediaIntros(prev => [...prev, ...newIntros]);
+      showToast('success', `Added ${newIntros.length} intro video${newIntros.length > 1 ? 's' : ''} to library`);
+    }
+  }, [showToast]);
+
+  // Add outro videos to library
+  const addOutrosToLibrary = useCallback((files: FileList) => {
+    const newOutros: string[] = [];
+    Array.from(files).forEach(file => {
+      const filePath = (file as any).path ?? file.name;
+      const validation = validateVideoFormat(filePath);
+      if (validation.valid) {
+        newOutros.push(filePath);
+      } else {
+        showToast('warning', `Skipped ${file.name}: ${validation.error}`);
+      }
+    });
+    if (newOutros.length > 0) {
+      setMediaOutros(prev => [...prev, ...newOutros]);
+      showToast('success', `Added ${newOutros.length} outro video${newOutros.length > 1 ? 's' : ''} to library`);
+    }
+  }, [showToast]);
+
+  // Add fonts to library
+  const addFontsToLibrary = useCallback((files: FileList) => {
+    const newFonts: string[] = [];
+    Array.from(files).forEach(file => {
+      const filePath = (file as any).path ?? file.name;
+      // Simple validation for font files
+      if (filePath.match(/\.(ttf|otf|woff|woff2)$/i)) {
+        newFonts.push(filePath);
+      } else {
+        showToast('warning', `Skipped ${file.name}: Not a valid font file`);
+      }
+    });
+    if (newFonts.length > 0) {
+      setMediaFonts(prev => [...prev, ...newFonts]);
+      showToast('success', `Added ${newFonts.length} font${newFonts.length > 1 ? 's' : ''} to library`);
+    }
+  }, [showToast]);
+
+  // Remove from intro/outro/font libraries
+  const removeIntroFromLibrary = useCallback((path: string) => {
+    setMediaIntros(prev => prev.filter(p => p !== path));
+    showToast('info', 'Intro video removed from library');
+  }, [showToast]);
+
+  const removeOutroFromLibrary = useCallback((path: string) => {
+    setMediaOutros(prev => prev.filter(p => p !== path));
+    showToast('info', 'Outro video removed from library');
+  }, [showToast]);
+
+  const removeFontFromLibrary = useCallback((path: string) => {
+    setMediaFonts(prev => prev.filter(p => p !== path));
+    showToast('info', 'Font removed from library');
   }, [showToast]);
 
   // Video clip management
@@ -1375,6 +1448,120 @@ export default function App() {
                 </div>
               ) : (
                 <div className="media-empty">No audio in library. Upload audio files to get started.</div>
+              )}
+            </div>
+
+            {/* INTRO LIBRARY */}
+            <div className="section">
+              <h3 className="section-title">🎞️ Intro Library</h3>
+              <input
+                type="file"
+                accept="video/*"
+                multiple
+                onChange={e => e.target.files && addIntrosToLibrary(e.target.files)}
+                style={{marginBottom: '12px'}}
+              />
+              {mediaIntros.length > 0 ? (
+                <div className="media-grid">
+                  {mediaIntros.map((intro, idx) => (
+                    <div key={idx} className="media-item">
+                      <div className="media-thumbnail media-thumbnail-video"
+                        onClick={() => {
+                          t.intro = { src: intro, duration: 3 };
+                          setP({ ...p });
+                          showToast('success', 'Video set as intro');
+                        }}
+                        title="Click to use as intro"
+                      >
+                        <div className="media-icon">🎞️</div>
+                      </div>
+                      <div className="media-name">{intro.split('/').pop() || intro.split('\\').pop()}</div>
+                      <button
+                        className="btn-remove-media"
+                        onClick={() => removeIntroFromLibrary(intro)}
+                        title="Remove from library"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="media-empty">No intro videos in library. Upload intro videos to get started.</div>
+              )}
+            </div>
+
+            {/* OUTRO LIBRARY */}
+            <div className="section">
+              <h3 className="section-title">🎞️ Outro Library</h3>
+              <input
+                type="file"
+                accept="video/*"
+                multiple
+                onChange={e => e.target.files && addOutrosToLibrary(e.target.files)}
+                style={{marginBottom: '12px'}}
+              />
+              {mediaOutros.length > 0 ? (
+                <div className="media-grid">
+                  {mediaOutros.map((outro, idx) => (
+                    <div key={idx} className="media-item">
+                      <div className="media-thumbnail media-thumbnail-video"
+                        onClick={() => {
+                          t.outro = { src: outro, duration: 3 };
+                          setP({ ...p });
+                          showToast('success', 'Video set as outro');
+                        }}
+                        title="Click to use as outro"
+                      >
+                        <div className="media-icon">🎞️</div>
+                      </div>
+                      <div className="media-name">{outro.split('/').pop() || outro.split('\\').pop()}</div>
+                      <button
+                        className="btn-remove-media"
+                        onClick={() => removeOutroFromLibrary(outro)}
+                        title="Remove from library"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="media-empty">No outro videos in library. Upload outro videos to get started.</div>
+              )}
+            </div>
+
+            {/* FONT LIBRARY */}
+            <div className="section">
+              <h3 className="section-title">🔤 Font Library</h3>
+              <input
+                type="file"
+                accept=".ttf,.otf,.woff,.woff2"
+                multiple
+                onChange={e => e.target.files && addFontsToLibrary(e.target.files)}
+                style={{marginBottom: '12px'}}
+              />
+              {mediaFonts.length > 0 ? (
+                <div className="media-grid">
+                  {mediaFonts.map((font, idx) => (
+                    <div key={idx} className="media-item">
+                      <div className="media-thumbnail media-thumbnail-audio"
+                        onClick={() => {
+                          t.ticker!.font = font;
+                          setP({ ...p });
+                          showToast('success', 'Font set for ticker');
+                        }}
+                        title="Click to use for ticker"
+                      >
+                        <div className="media-icon">🔤</div>
+                      </div>
+                      <div className="media-name">{font.split('/').pop() || font.split('\\').pop()}</div>
+                      <button
+                        className="btn-remove-media"
+                        onClick={() => removeFontFromLibrary(font)}
+                        title="Remove from library"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="media-empty">No fonts in library. Upload font files to get started.</div>
               )}
             </div>
 
