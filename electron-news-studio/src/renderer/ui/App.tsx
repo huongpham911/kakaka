@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useCallback } from "react";
-import type { Project, VideoClip, TransitionType } from "../../shared/types";
+import type { Project, VideoClip, TransitionType, AudioTrack, LogoTrack, TickerTrack } from "../../shared/types";
 import {
   RESOLUTIONS,
   AUTOSAVE_INTERVAL,
@@ -427,6 +427,126 @@ export default function App() {
     setMediaFonts(prev => prev.filter(p => p !== path));
     showToast('info', 'Font removed from library');
   }, [showToast]);
+
+  // ========== TRACK MANAGEMENT ==========
+  // Add Audio Track
+  const addAudioTrack = useCallback((src: string, type: 'bgm' | 'voice' = 'bgm') => {
+    const newTrack: AudioTrack = {
+      id: `audio-${Date.now()}`,
+      name: type === 'bgm' ? `BGM ${t.audios.length + 1}` : `Voice ${t.audios.length + 1}`,
+      src,
+      gain: type === 'bgm' ? -6 : 0,
+      type,
+      duckOthers: type === 'voice'
+    };
+    setP(old => ({
+      ...old,
+      tracks: { ...old.tracks, audios: [...old.tracks.audios, newTrack] }
+    }));
+    showToast('success', `Audio track added: ${newTrack.name}`);
+  }, [t.audios, showToast]);
+
+  // Add Logo Track
+  const addLogoTrack = useCallback((src: string) => {
+    const newTrack: LogoTrack = {
+      id: `logo-${Date.now()}`,
+      name: `Logo ${t.logos.length + 1}`,
+      src,
+      pos: 'top-right',
+      opacity: 0.9,
+      scale: 220
+    };
+    setP(old => ({
+      ...old,
+      tracks: { ...old.tracks, logos: [...old.tracks.logos, newTrack] }
+    }));
+    showToast('success', `Logo track added: ${newTrack.name}`);
+  }, [t.logos, showToast]);
+
+  // Add Ticker Track
+  const addTickerTrack = useCallback((text: string, font: string) => {
+    const newTrack: TickerTrack = {
+      id: `ticker-${Date.now()}`,
+      name: `Ticker ${t.tickers.length + 1}`,
+      text,
+      font,
+      size: 48,
+      color: 'white',
+      y: 1000,
+      speed: 250,
+      box: true,
+      boxColor: 'black',
+      boxOpacity: 0.55,
+      textOpacity: 1.0,
+      direction: 'rtl',
+      position: 'footer',
+      shadow: false,
+      shadowColor: 'black',
+      shadowX: 2,
+      shadowY: 2
+    };
+    setP(old => ({
+      ...old,
+      tracks: { ...old.tracks, tickers: [...old.tracks.tickers, newTrack] }
+    }));
+    showToast('success', `Ticker track added: ${newTrack.name}`);
+  }, [t.tickers, showToast]);
+
+  // Remove Track (generic)
+  const removeAudioTrack = useCallback((id: string) => {
+    setP(old => ({
+      ...old,
+      tracks: { ...old.tracks, audios: old.tracks.audios.filter(t => t.id !== id) }
+    }));
+    showToast('info', 'Audio track removed');
+  }, [showToast]);
+
+  const removeLogoTrack = useCallback((id: string) => {
+    setP(old => ({
+      ...old,
+      tracks: { ...old.tracks, logos: old.tracks.logos.filter(t => t.id !== id) }
+    }));
+    showToast('info', 'Logo track removed');
+  }, [showToast]);
+
+  const removeTickerTrack = useCallback((id: string) => {
+    setP(old => ({
+      ...old,
+      tracks: { ...old.tracks, tickers: old.tracks.tickers.filter(t => t.id !== id) }
+    }));
+    showToast('info', 'Ticker track removed');
+  }, [showToast]);
+
+  // Update Track
+  const updateAudioTrack = useCallback((id: string, updates: Partial<AudioTrack>) => {
+    setP(old => ({
+      ...old,
+      tracks: {
+        ...old.tracks,
+        audios: old.tracks.audios.map(t => t.id === id ? { ...t, ...updates } : t)
+      }
+    }));
+  }, []);
+
+  const updateLogoTrack = useCallback((id: string, updates: Partial<LogoTrack>) => {
+    setP(old => ({
+      ...old,
+      tracks: {
+        ...old.tracks,
+        logos: old.tracks.logos.map(t => t.id === id ? { ...t, ...updates } : t)
+      }
+    }));
+  }, []);
+
+  const updateTickerTrack = useCallback((id: string, updates: Partial<TickerTrack>) => {
+    setP(old => ({
+      ...old,
+      tracks: {
+        ...old.tracks,
+        tickers: old.tracks.tickers.map(t => t.id === id ? { ...t, ...updates } : t)
+      }
+    }));
+  }, []);
 
   // Video clip management
   // Toggle clip selection (for multi-select)
@@ -1329,12 +1449,8 @@ export default function App() {
                   {mediaImages.map((img, idx) => (
                     <div key={idx} className="media-item">
                       <div className="media-thumbnail" style={{backgroundImage: `url('${img}')`}}
-                        onClick={() => {
-                          t.logo!.src = img;
-                          setP({ ...p });
-                          showToast('success', 'Image set as logo');
-                        }}
-                        title="Click to use as logo"
+                        onClick={() => addLogoTrack(img)}
+                        title="Click to add as logo track"
                       />
                       <div className="media-name">{img.split('/').pop() || img.split('\\').pop()}</div>
                       <button
@@ -1404,17 +1520,10 @@ export default function App() {
                       <div className="media-thumbnail media-thumbnail-audio"
                         onClick={() => {
                           // Show menu to choose BGM or Voice
-                          const choice = confirm('Use as BGM? (Cancel for Voice-over)');
-                          if (choice) {
-                            t.audio!.bgm!.src = audio;
-                            showToast('success', 'Audio set as BGM');
-                          } else {
-                            t.audio!.voice!.src = audio;
-                            showToast('success', 'Audio set as Voice-over');
-                          }
-                          setP({ ...p });
+                          const choice = confirm('Add as BGM? (Cancel for Voice-over)');
+                          addAudioTrack(audio, choice ? 'bgm' : 'voice');
                         }}
-                        title="Click to use (BGM or Voice)"
+                        title="Click to add audio track (BGM or Voice)"
                       >
                         <div className="media-icon">🎵</div>
                       </div>
@@ -1524,11 +1633,12 @@ export default function App() {
                     <div key={idx} className="media-item">
                       <div className="media-thumbnail media-thumbnail-audio"
                         onClick={() => {
-                          t.ticker!.font = font;
-                          setP({ ...p });
-                          showToast('success', 'Font set for ticker');
+                          const text = prompt('Enter ticker text:', 'TIN NÓNG: Chữ chạy demo | ');
+                          if (text) {
+                            addTickerTrack(text, font);
+                          }
                         }}
-                        title="Click to use for ticker"
+                        title="Click to create ticker track with this font"
                       >
                         <div className="media-icon">🔤</div>
                       </div>
