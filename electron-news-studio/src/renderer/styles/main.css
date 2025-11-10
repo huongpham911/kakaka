@@ -240,31 +240,32 @@ header { padding:12px 16px; background:var(--bg-tertiary); border-bottom:1px sol
   flex-direction: column;
   gap: 2px;
   margin-top: 12px;
-  max-height: 280px;
-  overflow-y: scroll; /* Always show scrollbar */
+  height: 200px; /* Fixed height instead of max-height to force scrollbar */
+  overflow-y: auto; /* Auto instead of scroll - shows when needed */
   overflow-x: hidden;
-  padding-right: 8px;
-  scrollbar-gutter: stable; /* Reserve space for scrollbar */
+  padding-right: 4px;
 }
 .timeline-tracks::-webkit-scrollbar {
-  width: 12px; /* Wider scrollbar */
+  width: 14px; /* Even wider for visibility */
 }
 .timeline-tracks::-webkit-scrollbar-track {
-  background: #1a2332; /* Darker, more visible track */
-  border-radius: 6px;
-  border: 1px solid #2a3b4d; /* Border for visibility */
+  background: #0d1218; /* Very dark background */
+  border-radius: 7px;
+  border: 1px solid #3a4b5d; /* Lighter border */
 }
 .timeline-tracks::-webkit-scrollbar-thumb {
-  background: #2463eb; /* Bright blue thumb */
-  border-radius: 6px;
-  border: 2px solid #1a2332; /* Border for 3D effect */
-  min-height: 40px; /* Minimum thumb height */
+  background: linear-gradient(180deg, #2463eb 0%, #1d4ed8 100%); /* Gradient for depth */
+  border-radius: 7px;
+  border: 2px solid #0d1218; /* Border for contrast */
+  min-height: 50px; /* Larger minimum */
 }
 .timeline-tracks::-webkit-scrollbar-thumb:hover {
-  background: #3b82f6; /* Brighter on hover */
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%); /* Brighter on hover */
+  cursor: pointer;
 }
 .timeline-tracks::-webkit-scrollbar-thumb:active {
   background: #1e40af; /* Darker when dragging */
+  cursor: grabbing;
 }
 
 .track {
