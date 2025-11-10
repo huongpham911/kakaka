@@ -262,8 +262,9 @@
         border-right: 1px solid var(--border-primary);
         padding: 8px 12px;
         display: flex;
-        flex-direction: column;
-        justify-content: center;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
         flex-shrink: 0;
       }
 
@@ -282,6 +283,27 @@
         font-size: 10px;
         opacity: 0.5;
         margin-top: 2px;
+      }
+
+      .btn-track-remove {
+        width: 18px;
+        height: 18px;
+        padding: 0;
+        background: rgba(220, 38, 38, 0.8);
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .btn-track-remove:hover {
+        background: rgba(185, 28, 28, 1);
+        transform: scale(1.15);
       }
 
       .track-content {

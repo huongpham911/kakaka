@@ -190,7 +190,6 @@ export default function App() {
           duration: 30,
           tracks: {
             ...p.tracks,
-            ticker: { ...p.tracks.ticker!, position: 'header', y: 100 },
             frame: { enable: false, thickness: 0, color: "" }
           }
         });
@@ -207,7 +206,6 @@ export default function App() {
           duration: 120,
           tracks: {
             ...p.tracks,
-            ticker: { ...p.tracks.ticker!, position: 'custom', y: 900 },
             frame: { enable: true, thickness: 8, color: "#3b82f6@0.8" }
           }
         });
@@ -224,7 +222,6 @@ export default function App() {
           duration: 15,
           tracks: {
             ...p.tracks,
-            ticker: { ...p.tracks.ticker!, position: 'footer', bold: true, shadow: true },
             frame: { enable: true, thickness: 16, color: "gold@0.9" }
           }
         });
@@ -746,7 +743,7 @@ export default function App() {
     setDragOver(null);
   };
 
-  const handleDrop = (e: React.DragEvent, type: 'video' | 'intro' | 'outro' | 'logo' | 'font' | 'bgm' | 'voice') => {
+  const handleDrop = (e: React.DragEvent, type: 'video' | 'intro' | 'outro') => {
     e.preventDefault();
     e.stopPropagation();
     setDragOver(null);
@@ -757,39 +754,10 @@ export default function App() {
     const filePath = (file as any).path ?? file.name;
 
     // Validate file based on type
-    let validation;
-    switch (type) {
-      case 'video':
-      case 'intro':
-      case 'outro':
-        validation = validateVideoFormat(filePath);
-        if (!validation.valid) {
-          showToast('error', validation.error || 'Invalid video file');
-          return;
-        }
-        break;
-      case 'logo':
-        validation = validateImageFormat(filePath);
-        if (!validation.valid) {
-          showToast('error', validation.error || 'Invalid image file');
-          return;
-        }
-        break;
-      case 'font':
-        validation = validateFontFormat(filePath);
-        if (!validation.valid) {
-          showToast('error', validation.error || 'Invalid font file');
-          return;
-        }
-        break;
-      case 'bgm':
-      case 'voice':
-        validation = validateAudioFormat(filePath);
-        if (!validation.valid) {
-          showToast('error', validation.error || 'Invalid audio file');
-          return;
-        }
-        break;
+    const validation = validateVideoFormat(filePath);
+    if (!validation.valid) {
+      showToast('error', validation.error || 'Invalid video file');
+      return;
     }
 
     switch (type) {
@@ -806,26 +774,10 @@ export default function App() {
         setP({ ...p });
         showToast('success', 'Outro video added');
         break;
-      case 'logo':
-        t.logo!.src = filePath;
-        setP({ ...p });
-        showToast('success', 'Logo image added');
-        break;
-      case 'font':
-        t.ticker!.font = filePath;
-        setP({ ...p });
-        showToast('success', 'Ticker font added');
-        break;
-      case 'bgm':
-        t.audio!.bgm!.src = filePath;
-        setP({ ...p });
-        showToast('success', 'Background music added');
-        break;
-      case 'voice':
-        t.audio!.voice!.src = filePath;
-        setP({ ...p });
-        showToast('success', 'Voice-over added');
-        break;
+      // NOTE: logo, font, bgm, voice cases removed - now handled by media libraries
+      // Use Image Library → addLogoTrack()
+      // Use Audio Library → addAudioTrack()
+      // Use Font Library → addTickerTrack()
     }
   };
 
@@ -1795,185 +1747,6 @@ export default function App() {
               </div>
             )}
 
-            {/* Logo Section */}
-            <div className="section">
-              <h3 className="section-title">🖼️ Logo</h3>
-              <div className={`dropzone ${dragOver === 'logo' ? 'drag-over' : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'logo')}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'logo')}>
-                <input type="file" accept="image/*" onChange={e => {
-                  const f = e.target.files?.[0]; if (!f) return;
-                  t.logo!.src = (f as any).path ?? "";
-                  setP({ ...p });
-                }} />
-                {t.logo?.src && <div className="file-name">🖼️ {t.logo.src.split('/').pop()}</div>}
-                <div className="drop-hint">Drop logo here</div>
-              </div>
-              {t.logo?.src && (
-                <>
-                  <label>Position</label>
-                  <select value={t.logo?.pos} onChange={e => { t.logo!.pos = e.target.value; setP({ ...p }); }}>
-                    <option>top-left</option><option>top-right</option><option>bottom-left</option>
-                    <option>bottom-right</option><option>center</option>
-                  </select>
-                  <div className="row">
-                    <div><label>Opacity</label><input type="number" min="0" max="1" step="0.05" value={t.logo?.opacity ?? 0.9}
-                      onChange={e => { t.logo!.opacity = Number(e.target.value); setP({ ...p }); }} /></div>
-                    <div><label>Scale</label><input type="number" value={t.logo?.scale ?? 220}
-                      onChange={e => { t.logo!.scale = Number(e.target.value||220); setP({ ...p }); }} /></div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Audio Section */}
-            <div className="section">
-              <h3 className="section-title">🎵 Audio</h3>
-              <label>BGM</label>
-              <div className={`dropzone ${dragOver === 'bgm' ? 'drag-over' : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'bgm')}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'bgm')}>
-                <input type="file" accept="audio/*" onChange={e => {
-                  const f=e.target.files?.[0]; if(!f) return;
-                  t.audio!.bgm!.src=(f as any).path??""; setP({ ...p });
-                }} />
-                {t.audio?.bgm?.src && <div className="file-name">🎵 {t.audio.bgm.src.split('/').pop()}</div>}
-                <div className="drop-hint">Background music</div>
-              </div>
-              {t.audio?.bgm?.src && (
-                <><label>Gain (dB)</label><input type="number" value={t.audio?.bgm?.gain ?? -6} onChange={e => { t.audio!.bgm!.gain = Number(e.target.value||-6); setP({ ...p }); }} /></>
-              )}
-
-              <label>Voice</label>
-              <div className={`dropzone ${dragOver === 'voice' ? 'drag-over' : ''}`}
-                onDragOver={(e) => handleDragOver(e, 'voice')}
-                onDragLeave={handleDragLeave}
-                onDrop={(e) => handleDrop(e, 'voice')}>
-                <input type="file" accept="audio/*" onChange={e => {
-                  const f=e.target.files?.[0]; if(!f) return;
-                  t.audio!.voice!.src=(f as any).path??""; setP({ ...p });
-                }} />
-                {t.audio?.voice?.src && <div className="file-name">🎤 {t.audio.voice.src.split('/').pop()}</div>}
-                <div className="drop-hint">Voice over</div>
-              </div>
-              {t.audio?.voice?.src && (
-                <>
-                  <label>Gain (dB)</label>
-                  <input type="number" value={t.audio?.voice?.gain ?? 0} onChange={e => { t.audio!.voice!.gain = Number(e.target.value||0); setP({ ...p }); }} />
-                  {t.audio?.bgm?.src && (
-                    <><label>Duck BGM</label>
-                    <select value={t.audio?.voice?.duck_bgm ? "1":"0"} onChange={e => { t.audio!.voice!.duck_bgm = e.target.value==="1"; setP({ ...p }); }}>
-                      <option value="1">On</option><option value="0">Off</option>
-                    </select></>
-                  )}
-                </>
-              )}
-            </div>
-
-            {/* Ticker Section - Compact */}
-            <div className="section">
-              <h3 className="section-title">📝 Ticker</h3>
-
-              <label>Text</label>
-              <textarea rows={2} value={t.ticker?.text ?? ""} onChange={e => { t.ticker!.text = e.target.value; setP({ ...p }); }}
-                placeholder="Enter scrolling ticker text..." style={{fontSize: '13px'}} />
-
-              <div style={{padding: '6px 8px', background: 'var(--bg-elevated)', borderRadius: '4px', fontSize: '11px', opacity: 0.7, marginTop: '8px', marginBottom: '12px'}}>
-                💡 Use <strong>🔤 Font Library</strong> above to set ticker font
-              </div>
-
-              <div className="row">
-                <div><label>Position</label><select value={t.ticker?.position ?? 'footer'} onChange={e => {
-                  const pos = e.target.value as 'header' | 'footer' | 'custom';
-                  t.ticker!.position = pos;
-                  if (pos === 'header') t.ticker!.y = 50;
-                  else if (pos === 'footer') t.ticker!.y = 1000;
-                  setP({ ...p });
-                }}><option value="header">Header</option><option value="footer">Footer</option><option value="custom">Custom</option></select></div>
-                <div><label>Direction</label><select value={t.ticker?.direction ?? 'rtl'} onChange={e => { t.ticker!.direction = e.target.value as 'rtl' | 'ltr'; setP({ ...p }); }}>
-                  <option value="rtl">← RTL</option><option value="ltr">LTR →</option>
-                </select></div>
-              </div>
-
-              <div className="row">
-                <div><label>Size</label><input type="number" value={t.ticker?.size ?? 48} onChange={e => { t.ticker!.size = Number(e.target.value||48); setP({ ...p }); }} /></div>
-                <div><label>Speed</label><input type="number" value={t.ticker?.speed ?? 250} onChange={e => { t.ticker!.speed = Number(e.target.value||250); setP({ ...p }); }} /></div>
-              </div>
-
-              <label>Text Color</label>
-              <div className="color-input-group">
-                <input type="text" value={t.ticker?.color ?? "white"} onChange={e => { t.ticker!.color = e.target.value; setP({ ...p }); }} placeholder="white, #ffffff" />
-                <input type="color" value={t.ticker?.color === "white" ? "#ffffff" : (t.ticker?.color || "#ffffff")}
-                  onChange={e => { t.ticker!.color = e.target.value; setP({ ...p }); }}
-                  title="Pick color" />
-              </div>
-
-              <label>Text Opacity</label>
-              <input type="range" min="0" max="1" step="0.05" value={t.ticker?.textOpacity ?? 1.0}
-                onChange={e => { t.ticker!.textOpacity = Number(e.target.value); setP({ ...p }); }}
-                style={{accentColor: 'var(--accent-primary)'}} />
-              <div style={{fontSize: '11px', opacity: 0.7, marginTop: '-8px', marginBottom: '8px'}}>{((t.ticker?.textOpacity ?? 1.0) * 100).toFixed(0)}%</div>
-
-              <details style={{marginTop: '8px', marginBottom: '8px'}}>
-                <summary style={{cursor: 'pointer', fontSize: '12px', fontWeight: '600', marginBottom: '8px'}}>🌑 Shadow</summary>
-
-                <label>Enable Shadow</label>
-                <select value={t.ticker?.shadow ? "1":"0"} onChange={e => { t.ticker!.shadow = e.target.value==="1"; setP({ ...p }); }} style={{marginBottom: '12px'}}>
-                  <option value="0">Off</option>
-                  <option value="1">On</option>
-                </select>
-
-                {t.ticker?.shadow && (
-                  <>
-                    <label>Shadow Color</label>
-                    <div className="color-input-group">
-                      <input type="text" value={t.ticker?.shadowColor ?? "black"} onChange={e => { t.ticker!.shadowColor = e.target.value; setP({ ...p }); }} placeholder="black, #000000" />
-                      <input type="color" value={t.ticker?.shadowColor === "black" ? "#000000" : (t.ticker?.shadowColor || "#000000")}
-                        onChange={e => { t.ticker!.shadowColor = e.target.value; setP({ ...p }); }}
-                        title="Pick shadow color" />
-                    </div>
-
-                    <div className="row">
-                      <div><label>Offset X</label><input type="number" value={t.ticker?.shadowX ?? 2} onChange={e => { t.ticker!.shadowX = Number(e.target.value||2); setP({ ...p }); }} /></div>
-                      <div><label>Offset Y</label><input type="number" value={t.ticker?.shadowY ?? 2} onChange={e => { t.ticker!.shadowY = Number(e.target.value||2); setP({ ...p }); }} /></div>
-                    </div>
-                  </>
-                )}
-              </details>
-
-              <details style={{marginTop: '8px'}}>
-                <summary style={{cursor: 'pointer', fontSize: '12px', fontWeight: '600', marginBottom: '8px'}}>📦 Background Box</summary>
-                <div style={{fontSize: '11px', opacity: 0.7, marginBottom: '8px', fontStyle: 'italic'}}>
-                  Background box makes text easier to read
-                </div>
-
-                <label>Enable Box</label>
-                <select value={t.ticker?.box ? "1":"0"} onChange={e => { t.ticker!.box = e.target.value==="1"; setP({ ...p }); }} style={{marginBottom: '12px'}}>
-                  <option value="0">Off</option>
-                  <option value="1">On</option>
-                </select>
-
-                {t.ticker?.box && (
-                  <>
-                    <label>Box Color</label>
-                    <div className="color-input-group">
-                      <input type="text" value={t.ticker?.boxColor ?? "black"} onChange={e => { t.ticker!.boxColor = e.target.value; setP({ ...p }); }} placeholder="black, #000000" />
-                      <input type="color" value={t.ticker?.boxColor === "black" ? "#000000" : (t.ticker?.boxColor || "#000000")}
-                        onChange={e => { t.ticker!.boxColor = e.target.value; setP({ ...p }); }}
-                        title="Pick box color" />
-                    </div>
-
-                    <label>Box Opacity</label>
-                    <input type="range" min="0" max="1" step="0.05" value={t.ticker?.boxOpacity ?? 0.55}
-                      onChange={e => { t.ticker!.boxOpacity = Number(e.target.value); setP({ ...p }); }}
-                      style={{accentColor: 'var(--accent-primary)'}} />
-                    <div style={{fontSize: '11px', opacity: 0.7, marginTop: '-8px'}}>{((t.ticker?.boxOpacity ?? 0.55) * 100).toFixed(0)}%</div>
-                  </>
-                )}
-              </details>
-            </div>
           </div>
         )}
 
@@ -2476,27 +2249,43 @@ export default function App() {
 
         <div className="timeline-tracks">
           {/* TEXT / TICKER TRACK - Top layer */}
-          <div className="track text-track">
-            <div className="track-label">
-              <div className="track-label-title">
-                <span>📝</span>
-                <span>Text / Ticker</span>
+          {/* TICKER TRACKS - Dynamic (multiple) */}
+          {t.tickers.map((ticker) => (
+            <div key={ticker.id} className="track text-track">
+              <div className="track-label">
+                <div className="track-label-title">
+                  <span>📝</span>
+                  <span>{ticker.name}</span>
+                </div>
+                <button
+                  className="btn-track-remove"
+                  onClick={() => removeTickerTrack(ticker.id)}
+                  title="Remove ticker track"
+                >×</button>
               </div>
-              <div className="track-label-subtitle">Layer 5</div>
-            </div>
-            <div className="track-content">
-              {t.ticker?.text && t.ticker?.font ? (
+              <div className="track-content">
                 <div className="track-item">
-                  <div className="track-item-name">🔤 {t.ticker.text.substring(0, 20)}...</div>
+                  <div className="track-item-name">🔤 {ticker.text.substring(0, 30)}...</div>
                   <div className="track-item-info">
-                    {t.ticker.position || 'footer'} • {t.ticker.direction || 'rtl'}
+                    {ticker.position || 'footer'} • {ticker.direction || 'rtl'}
                   </div>
                 </div>
-              ) : (
-                <div className="track-empty">No ticker configured</div>
-              )}
+              </div>
             </div>
-          </div>
+          ))}
+          {t.tickers.length === 0 && (
+            <div className="track text-track">
+              <div className="track-label">
+                <div className="track-label-title">
+                  <span>📝</span>
+                  <span>Ticker</span>
+                </div>
+              </div>
+              <div className="track-content">
+                <div className="track-empty">No ticker tracks (use Font Library to add)</div>
+              </div>
+            </div>
+          )}
 
           {/* FRAME TRACK */}
           <div className="track frame-track">
@@ -2521,56 +2310,84 @@ export default function App() {
             </div>
           </div>
 
-          {/* LOGO TRACK */}
-          <div className="track logo-track">
-            <div className="track-label">
-              <div className="track-label-title">
-                <span>🏷️</span>
-                <span>Logo</span>
+          {/* LOGO TRACKS - Dynamic (multiple overlays) */}
+          {t.logos.map((logo) => (
+            <div key={logo.id} className="track logo-track">
+              <div className="track-label">
+                <div className="track-label-title">
+                  <span>🏷️</span>
+                  <span>{logo.name}</span>
+                </div>
+                <button
+                  className="btn-track-remove"
+                  onClick={() => removeLogoTrack(logo.id)}
+                  title="Remove logo track"
+                >×</button>
               </div>
-              <div className="track-label-subtitle">Layer 3</div>
-            </div>
-            <div className="track-content">
-              {t.logo?.src ? (
+              <div className="track-content">
                 <div className="track-item">
-                  <div className="track-item-name">🖼️ {t.logo.src.split('/').pop()}</div>
+                  <div className="track-item-name">🖼️ {logo.src.split('/').pop()}</div>
                   <div className="track-item-info">
-                    {t.logo.pos} • opacity: {t.logo.opacity}
+                    {logo.pos || 'top-right'} • opacity: {logo.opacity || 1}
                   </div>
                 </div>
-              ) : (
-                <div className="track-empty">No logo</div>
-              )}
-            </div>
-          </div>
-
-          {/* AUDIO TRACK */}
-          <div className="track audio-track">
-            <div className="track-label">
-              <div className="track-label-title">
-                <span>🎵</span>
-                <span>Audio</span>
               </div>
-              <div className="track-label-subtitle">Layer 2</div>
             </div>
-            <div className="track-content">
-              {t.audio?.bgm?.src && (
-                <div className="track-item">
-                  <div className="track-item-name">🎵 {t.audio.bgm.src.split('/').pop()}</div>
-                  <div className="track-item-info">BGM • {t.audio.bgm.gain}dB</div>
+          ))}
+          {t.logos.length === 0 && (
+            <div className="track logo-track">
+              <div className="track-label">
+                <div className="track-label-title">
+                  <span>🏷️</span>
+                  <span>Logo</span>
                 </div>
-              )}
-              {t.audio?.voice?.src && (
-                <div className="track-item">
-                  <div className="track-item-name">🎤 {t.audio.voice.src.split('/').pop()}</div>
-                  <div className="track-item-info">Voice • {t.audio.voice.gain}dB{t.audio.voice.duck_bgm ? ' • Duck' : ''}</div>
-                </div>
-              )}
-              {!t.audio?.bgm?.src && !t.audio?.voice?.src && (
-                <div className="track-empty">No audio</div>
-              )}
+              </div>
+              <div className="track-content">
+                <div className="track-empty">No logo tracks (use Image Library to add)</div>
+              </div>
             </div>
-          </div>
+          )}
+
+          {/* AUDIO TRACKS - Dynamic (multiple) */}
+          {t.audios.map((audio) => (
+            <div key={audio.id} className="track audio-track">
+              <div className="track-label">
+                <div className="track-label-title">
+                  <span>{audio.type === 'voice' ? '🎤' : '🎵'}</span>
+                  <span>{audio.name}</span>
+                </div>
+                <button
+                  className="btn-track-remove"
+                  onClick={() => removeAudioTrack(audio.id)}
+                  title="Remove audio track"
+                >×</button>
+              </div>
+              <div className="track-content">
+                <div className="track-item">
+                  <div className="track-item-name">
+                    {audio.type === 'voice' ? '🎤' : '🎵'} {audio.src.split('/').pop()}
+                  </div>
+                  <div className="track-item-info">
+                    {audio.type === 'voice' ? 'Voice' : 'BGM'} • {audio.gain || 0}dB
+                    {audio.duckOthers ? ' • Duck' : ''}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          {t.audios.length === 0 && (
+            <div className="track audio-track">
+              <div className="track-label">
+                <div className="track-label-title">
+                  <span>🎵</span>
+                  <span>Audio</span>
+                </div>
+              </div>
+              <div className="track-content">
+                <div className="track-empty">No audio tracks (use Audio Library to add)</div>
+              </div>
+            </div>
+          )}
 
           {/* VIDEO TRACK - Bottom layer */}
           <div className="track video-track">
