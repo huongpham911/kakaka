@@ -2124,8 +2124,7 @@ export default function App() {
           <div className="track text-track">
             <div className="track-label">
               <div className="track-label-title">
-                <span>📝</span>
-                <span>Text / Ticker</span>
+                <span style={{fontSize: '16px'}}>📝</span>
               </div>
               <div className="track-label-subtitle">Layer 5</div>
             </div>
@@ -2147,8 +2146,7 @@ export default function App() {
           <div className="track frame-track">
             <div className="track-label">
               <div className="track-label-title">
-                <span>🖼️</span>
-                <span>Frame</span>
+                <span style={{fontSize: '16px'}}>🖼️</span>
               </div>
               <div className="track-label-subtitle">Layer 4</div>
             </div>
@@ -2170,8 +2168,7 @@ export default function App() {
           <div className="track logo-track">
             <div className="track-label">
               <div className="track-label-title">
-                <span>🏷️</span>
-                <span>Logo</span>
+                <span style={{fontSize: '16px'}}>🏷️</span>
               </div>
               <div className="track-label-subtitle">Layer 3</div>
             </div>
@@ -2193,8 +2190,7 @@ export default function App() {
           <div className="track audio-track">
             <div className="track-label">
               <div className="track-label-title">
-                <span>🎵</span>
-                <span>Audio</span>
+                <span style={{fontSize: '16px'}}>🎵</span>
               </div>
               <div className="track-label-subtitle">Layer 2</div>
             </div>
