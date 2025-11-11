@@ -87,6 +87,7 @@ export default function App() {
   const [selectedClips, setSelectedClips] = useState<string[]>([]);
   const [copiedClips, setCopiedClips] = useState<VideoClip[]>([]);
   const [previewVideoIndex, setPreviewVideoIndex] = useState<number>(0); // Track which video is in preview
+  const [isPreviewingTimeline, setIsPreviewingTimeline] = useState<boolean>(false); // Track if we're previewing entire timeline
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -821,12 +822,22 @@ export default function App() {
   }, []);
 
   const handleVideoEnded = useCallback(() => {
-    setIsPlaying(false);
-    setPlayheadPosition(0);
-    if (videoRef.current) {
-      videoRef.current.currentTime = 0;
+    // If previewing timeline, move to next clip
+    if (isPreviewingTimeline && previewVideoIndex < t.video.length - 1) {
+      setPreviewVideoIndex(prev => prev + 1);
+      setCurrentTime(0);
+      setPlayheadPosition(0);
+      // Video will auto-play due to the play() call in useEffect
+    } else {
+      // End of timeline or single clip preview
+      setIsPlaying(false);
+      setPlayheadPosition(0);
+      setIsPreviewingTimeline(false);
+      if (videoRef.current) {
+        videoRef.current.currentTime = 0;
+      }
     }
-  }, []);
+  }, [isPreviewingTimeline, previewVideoIndex, t.video.length]);
 
   const seekVideo = useCallback((time: number) => {
     if (!videoRef.current) return;
@@ -931,6 +942,57 @@ export default function App() {
       showToast('error', 'Fullscreen not supported');
     }
   }, [showToast]);
+
+  // Start timeline preview - play all clips in sequence
+  const startTimelinePreview = useCallback(() => {
+    if (t.video.length === 0) {
+      showToast('warning', 'No video clips to preview!');
+      return;
+    }
+
+    setIsPreviewingTimeline(true);
+    setPreviewVideoIndex(0);
+    setCurrentTime(0);
+    setPlayheadPosition(0);
+    setIsPlaying(true);
+
+    // Will trigger play in useEffect below
+    showToast('info', `Starting timeline preview (${t.video.length} clip${t.video.length > 1 ? 's' : ''})`);
+  }, [t.video.length, showToast]);
+
+  // Stop timeline preview
+  const stopTimelinePreview = useCallback(() => {
+    setIsPreviewingTimeline(false);
+    setIsPlaying(false);
+    setPreviewVideoIndex(0);
+    setCurrentTime(0);
+    setPlayheadPosition(0);
+    if (videoRef.current) {
+      videoRef.current.pause();
+      videoRef.current.currentTime = 0;
+    }
+    showToast('info', 'Timeline preview stopped');
+  }, [showToast]);
+
+  // Toggle timeline preview
+  const toggleTimelinePreview = useCallback(() => {
+    if (isPreviewingTimeline) {
+      stopTimelinePreview();
+    } else {
+      startTimelinePreview();
+    }
+  }, [isPreviewingTimeline, startTimelinePreview, stopTimelinePreview]);
+
+  // Auto-play when switching clips during timeline preview
+  useEffect(() => {
+    if (isPreviewingTimeline && videoRef.current && isPlaying) {
+      videoRef.current.play().catch(err => {
+        console.error('Auto-play error:', err);
+        setIsPlaying(false);
+        setIsPreviewingTimeline(false);
+      });
+    }
+  }, [previewVideoIndex, isPreviewingTimeline, isPlaying]);
 
   // Listen to export progress
   useEffect(() => {
@@ -1574,16 +1636,17 @@ export default function App() {
                   position: 'absolute',
                   top: '8px',
                   left: '12px',
-                  background: 'rgba(0, 0, 0, 0.7)',
+                  background: isPreviewingTimeline ? 'rgba(59, 130, 246, 0.8)' : 'rgba(0, 0, 0, 0.7)',
                   color: 'white',
                   padding: '6px 12px',
                   borderRadius: '6px',
                   fontSize: '12px',
                   fontWeight: '600',
                   zIndex: 10,
-                  backdropFilter: 'blur(4px)'
+                  backdropFilter: 'blur(4px)',
+                  transition: 'background 0.3s ease'
                 }}>
-                  👁️ Preview: Clip #{previewVideoIndex + 1}
+                  {isPreviewingTimeline ? '▶️' : '👁️'} {isPreviewingTimeline ? 'Timeline Preview:' : 'Preview:'} Clip #{previewVideoIndex + 1}/{t.video.length}
                 </div>
                 <video
                   ref={videoRef}
@@ -1886,8 +1949,16 @@ export default function App() {
 
         <div className="toolbar-divider"></div>
 
-        <button className="btn-preview" onClick={() => showToast('info', 'Preview feature coming soon!')}>
-          👁️ Preview
+        <button
+          className="btn-preview"
+          onClick={toggleTimelinePreview}
+          disabled={t.video.length === 0}
+          style={{
+            background: isPreviewingTimeline ? 'var(--danger-color)' : undefined,
+            borderColor: isPreviewingTimeline ? 'var(--danger-color)' : undefined
+          }}
+        >
+          {isPreviewingTimeline ? '⏹️ Stop Preview' : '👁️ Preview Timeline'}
         </button>
 
         <button className="btn-render" onClick={onExport} disabled={disabled || isExporting}>
@@ -2133,6 +2204,7 @@ export default function App() {
                       setPreviewVideoIndex(idx);
                       setCurrentTime(0); // Reset to start of video
                       setIsPlaying(false); // Pause when switching videos
+                      setIsPreviewingTimeline(false); // Exit timeline preview mode
                     }}
                     title={`${filename}\nClick to select, Ctrl/Cmd+Click for multi-select\nDrag to reorder`}
                     style={{
