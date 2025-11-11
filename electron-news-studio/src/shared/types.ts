@@ -1,6 +1,6 @@
 export type TransitionType = 'none' | 'fade' | 'fadeblack' | 'wipeleft' | 'wiperight' | 'wipeup' | 'wipedown' | 'slideleft' | 'slideright' | 'slideup' | 'slidedown' | 'circlecrop' | 'circleopen' | 'dissolve';
 
-export type MetadataPreset = 'none' | 'adobe-premiere' | 'adobe-after-effects' | 'camtasia' | 'custom';
+export type MetadataPreset = 'none' | 'adobe-premiere' | 'adobe-after-effects' | 'adobe-media-encoder' | 'camtasia' | 'custom';
 
 export type VideoClip = {
   id: string;

@@ -49,6 +49,16 @@ const adobeAfterEffectsVersions = [
   { year: 2025, versions: ['25.0'], buildRange: [1, 25] },
 ];
 
+// Adobe Media Encoder version database (2020-2025)
+const adobeMediaEncoderVersions = [
+  { year: 2020, versions: ['14.0', '14.0.1', '14.1', '14.2', '14.3', '14.4', '14.5'], buildRange: [1, 73] },
+  { year: 2021, versions: ['15.0', '15.1', '15.2', '15.4'], buildRange: [1, 46] },
+  { year: 2022, versions: ['22.0', '22.1', '22.2', '22.3', '22.4', '22.5', '22.6'], buildRange: [1, 101] },
+  { year: 2023, versions: ['23.0', '23.1', '23.2', '23.3', '23.4', '23.5', '23.6'], buildRange: [1, 71] },
+  { year: 2024, versions: ['24.0', '24.1', '24.2', '24.3', '24.4', '24.5', '24.6'], buildRange: [1, 97] },
+  { year: 2025, versions: ['25.0', '25.1'], buildRange: [1, 28] },
+];
+
 // Camtasia Studio version database (2020-2025)
 const camtasiaVersions = [
   { year: 2020, versions: ['2020.0.0', '2020.0.1', '2020.0.2', '2020.0.3', '2020.0.4', '2020.0.5'], buildRange: [4220, 4350] },
@@ -70,6 +80,14 @@ function randomPremiereVersion() {
 // Random After Effects version
 function randomAfterEffectsVersion() {
   const yearData = adobeAfterEffectsVersions[Math.floor(Math.random() * adobeAfterEffectsVersions.length)];
+  const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
+  const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
+  return { year: yearData.year, version, build };
+}
+
+// Random Media Encoder version
+function randomMediaEncoderVersion() {
+  const yearData = adobeMediaEncoderVersions[Math.floor(Math.random() * adobeMediaEncoderVersions.length)];
   const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
   const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
   return { year: yearData.year, version, build };
@@ -120,6 +138,24 @@ function getMetadataPreset(preset: string): MetadataValues {
         compatible_brands: 'qt  ',
         make: 'Adobe Systems Incorporated',
         model: `After Effects ${ver.year}`,
+        language: 'eng',
+      };
+    }
+    case 'adobe-media-encoder': {
+      const ver = randomMediaEncoderVersion();
+      const presetNames = ['YouTube 1080p HD', 'H.264 High Quality', 'Match Source - High bitrate', 'Vimeo 1080p HD', 'Facebook 1080p', 'Custom Export'];
+      const randomPreset = presetNames[Math.floor(Math.random() * presetNames.length)];
+      const queueItem = Math.floor(Math.random() * 50) + 1;
+      return {
+        encoder: `Adobe Media Encoder ${ver.year} (Windows)`,
+        comment: `Encoded by Adobe Media Encoder ${ver.version} Build ${ver.build} - Preset: ${randomPreset} - Queue Item ${queueItem}`,
+        creation_time: now,
+        handler_name: 'VideoHandler',
+        timecode: '00:00:00:00',
+        major_brand: 'isom',
+        compatible_brands: 'isomiso2avc1mp41',
+        make: 'Adobe Systems Incorporated',
+        model: `Media Encoder ${ver.year}`,
         language: 'eng',
       };
     }

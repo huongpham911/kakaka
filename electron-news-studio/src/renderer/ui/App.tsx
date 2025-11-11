@@ -1521,6 +1521,7 @@ export default function App() {
                 <option value="none">None</option>
                 <option value="adobe-premiere">Adobe Premiere Pro</option>
                 <option value="adobe-after-effects">Adobe After Effects</option>
+                <option value="adobe-media-encoder">Adobe Media Encoder</option>
                 <option value="camtasia">Camtasia Studio</option>
                 <option value="custom">Custom</option>
               </select>
