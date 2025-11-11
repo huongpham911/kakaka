@@ -138,7 +138,12 @@ export function createExporter() {
       vf.push(`[${segments.join('][')}]concat=n=${segments.length}:v=1:a=0[base]`);
     }
 
-    // Step 5: Apply logo overlay
+    // Calculate main video timing (exclude intro and outro)
+    const introTime = tracks.intro?.duration || 0;
+    const mainStartTime = introTime;
+    const mainEndTime = introTime + duration;
+
+    // Step 5: Apply logo overlay (only during main video)
     let currentLabel = 'base';
     if (logoIdx >= 0) {
       const pos = posExpr(tracks.logo.pos || "top-right");
@@ -146,7 +151,7 @@ export function createExporter() {
       const lsc = tracks.logo.scale ?? 220;
       vf.push(
         `[${logoIdx}:v]scale=${lsc}:-1,format=rgba,colorchannelmixer=aa=${op}[lg]`,
-        `[base][lg]overlay=${pos.x}:${pos.y}:enable='between(t,${tracks.logo.start ?? 0},${tracks.logo.end ?? duration})'[v1]`
+        `[base][lg]overlay=${pos.x}:${pos.y}:enable='between(t,${tracks.logo.start ?? mainStartTime},${tracks.logo.end ?? mainEndTime})'[v1]`
       );
       currentLabel = 'v1';
     } else {
@@ -154,15 +159,16 @@ export function createExporter() {
       currentLabel = 'v1';
     }
 
-    // Step 6: Apply frame border
+    // Step 6: Apply frame border (only during main video)
     if (tracks.frame?.enable) {
       const t = tracks.frame.thickness ?? 12;
       const c = tracks.frame.color ?? "white@0.85";
+      const timeCondition = `:enable='between(t,${mainStartTime},${mainEndTime})'`;
       vf.push(
-        `[${currentLabel}]drawbox=x=0:y=0:w=iw:h=${t}:t=fill:color=${c}[v2]`,
-        `[v2]drawbox=x=0:y=ih-${t}:w=iw:h=${t}:t=fill:color=${c}[v3]`,
-        `[v3]drawbox=x=0:y=0:w=${t}:h=ih:t=fill:color=${c}[v4]`,
-        `[v4]drawbox=x=iw-${t}:y=0:w=${t}:h=ih:t=fill:color=${c}[v5]`
+        `[${currentLabel}]drawbox=x=0:y=0:w=iw:h=${t}:t=fill:color=${c}${timeCondition}[v2]`,
+        `[v2]drawbox=x=0:y=ih-${t}:w=iw:h=${t}:t=fill:color=${c}${timeCondition}[v3]`,
+        `[v3]drawbox=x=0:y=0:w=${t}:h=ih:t=fill:color=${c}${timeCondition}[v4]`,
+        `[v4]drawbox=x=iw-${t}:y=0:w=${t}:h=ih:t=fill:color=${c}${timeCondition}[v5]`
       );
       currentLabel = 'v5';
     } else {
