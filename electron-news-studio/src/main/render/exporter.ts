@@ -20,31 +20,89 @@ type MetadataValues = {
   comment?: string;
   copyright?: string;
   creation_time?: string;
+  handler_name?: string;
+  timecode?: string;
+  major_brand?: string;
+  compatible_brands?: string;
+  make?: string;
+  model?: string;
+  language?: string;
 };
+
+// Generate random version components for realistic metadata
+function randomVersion() {
+  const major = 24; // Current Adobe year is 2024
+  const minor = Math.floor(Math.random() * 7); // 0-6
+  const patch = Math.floor(Math.random() * 10); // 0-9
+  const build = Math.floor(Math.random() * 100) + 1; // 1-100
+  return { major, minor, patch, build };
+}
 
 function getMetadataPreset(preset: string): MetadataValues {
   const now = new Date().toISOString();
   const year = new Date().getFullYear();
 
+  // Random computer/device names for realism
+  const computerNames = ['DESKTOP-7K9XM2P', 'WORKSTATION-5F3QN1', 'PC-STUDIO-X8L', 'EDIT-STATION-4N7'];
+  const randomPC = computerNames[Math.floor(Math.random() * computerNames.length)];
+
   switch (preset) {
-    case 'adobe-premiere':
+    case 'adobe-premiere': {
+      const ver = randomVersion();
+      const versionString = `${ver.major}.${ver.minor}.${ver.patch}`;
+      const buildNumber = `Build ${ver.build}`;
       return {
-        encoder: `Adobe Premiere Pro ${year}`,
-        comment: "Created with Adobe Premiere Pro",
+        encoder: `Adobe Premiere Pro ${year} (Windows)`,
+        comment: `Encoded by Adobe Premiere Pro ${versionString} ${buildNumber}`,
         creation_time: now,
+        handler_name: 'VideoHandler',
+        timecode: '00:00:00:00',
+        major_brand: 'isom',
+        compatible_brands: 'isomiso2avc1mp41',
+        make: 'Adobe Systems Incorporated',
+        model: `Premiere Pro ${year}`,
+        language: 'eng',
       };
-    case 'adobe-after-effects':
+    }
+    case 'adobe-after-effects': {
+      const ver = randomVersion();
+      const versionString = `${ver.major}.${ver.minor}.${ver.patch}`;
+      const renderQueue = Math.floor(Math.random() * 999) + 1;
+      const compName = `Comp ${Math.floor(Math.random() * 50) + 1}`;
       return {
-        encoder: `Adobe After Effects ${year}`,
-        comment: "Rendered with Adobe After Effects",
+        encoder: `Adobe After Effects ${year} (Windows)`,
+        comment: `Rendered with Adobe After Effects ${versionString} (Build ${ver.build}) - ${compName} - Render Queue Item ${renderQueue}`,
         creation_time: now,
+        handler_name: 'Core Media Video',
+        timecode: '00:00:00:00',
+        major_brand: 'qt  ',
+        compatible_brands: 'qt  ',
+        make: 'Adobe Systems Incorporated',
+        model: `After Effects ${year}`,
+        language: 'eng',
       };
-    case 'camtasia':
+    }
+    case 'camtasia': {
+      const majorVer = year; // Camtasia versions match year
+      const minorVer = Math.floor(Math.random() * 3); // 0-2
+      const patchVer = Math.floor(Math.random() * 10); // 0-9
+      const build = 5000 + Math.floor(Math.random() * 3000); // 5000-7999
+      const versionString = `${majorVer}.${minorVer}.${patchVer}`;
+      const projectNames = ['Screencast', 'Tutorial', 'Recording', 'Project', 'Presentation'];
+      const randomProject = projectNames[Math.floor(Math.random() * projectNames.length)];
       return {
-        encoder: `TechSmith Camtasia Studio ${year}`,
-        comment: "Produced with Camtasia Studio",
+        encoder: `TechSmith Camtasia Studio ${versionString} (Build ${build})`,
+        comment: `Produced with Camtasia Studio ${versionString} for Windows - ${randomProject} on ${randomPC}`,
         creation_time: now,
+        handler_name: 'VideoHandler',
+        timecode: '00:00:00;00',
+        major_brand: 'mp42',
+        compatible_brands: 'mp42isom',
+        make: 'TechSmith Corporation',
+        model: `Camtasia ${year}`,
+        language: 'eng',
       };
+    }
     default:
       return {};
   }
@@ -340,6 +398,12 @@ export function createExporter() {
         if (metadataValues.comment) outputOpts.push("-metadata", `comment=${metadataValues.comment}`);
         if (metadataValues.copyright) outputOpts.push("-metadata", `copyright=${metadataValues.copyright}`);
         if (metadataValues.creation_time) outputOpts.push("-metadata", `creation_time=${metadataValues.creation_time}`);
+        if (metadataValues.handler_name) outputOpts.push("-metadata:s:v:0", `handler_name=${metadataValues.handler_name}`);
+        if (metadataValues.timecode) outputOpts.push("-metadata", `timecode=${metadataValues.timecode}`);
+        if (metadataValues.major_brand) outputOpts.push("-brand", metadataValues.major_brand);
+        if (metadataValues.make) outputOpts.push("-metadata", `make=${metadataValues.make}`);
+        if (metadataValues.model) outputOpts.push("-metadata", `model=${metadataValues.model}`);
+        if (metadataValues.language) outputOpts.push("-metadata:s:v:0", `language=${metadataValues.language}`);
       }
 
       pipeline
