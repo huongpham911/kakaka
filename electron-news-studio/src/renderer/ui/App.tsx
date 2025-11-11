@@ -1254,7 +1254,11 @@ export default function App() {
                   display: 'grid',
                   gridTemplateColumns: 'repeat(2, 1fr)',
                   gap: '8px',
-                  marginTop: '12px'
+                  marginTop: '12px',
+                  maxHeight: '200px',
+                  overflowY: 'auto',
+                  overflowX: 'hidden',
+                  paddingRight: '4px'
                 }}>
                   {t.video.map((clip, idx) => {
                     const filename = clip.src.split('/').pop() || clip.src.split('\\').pop() || 'video';

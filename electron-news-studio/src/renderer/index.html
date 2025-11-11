@@ -1191,6 +1191,33 @@
         margin-bottom: 8px;
         pointer-events: none;
       }
+
+      /* Custom Scrollbar Styling */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: var(--bg-elevated);
+        border-radius: 4px;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: var(--border-secondary);
+        border-radius: 4px;
+        transition: background 0.2s;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-primary);
+      }
+
+      /* Firefox scrollbar */
+      * {
+        scrollbar-width: thin;
+        scrollbar-color: var(--border-secondary) var(--bg-elevated);
+      }
     </style>
   </head>
   <body>
