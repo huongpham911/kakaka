@@ -64,14 +64,14 @@ const adobeMediaEncoderVersions = [
   { year: 2025, versions: ['25.0', '25.1'], buildRange: [1, 28] },
 ];
 
-// Camtasia Studio version database (2020-2025)
+// Camtasia Studio version database (2020-2025) - Expanded for maximum diversity
 const camtasiaVersions = [
-  { year: 2020, versions: ['2020.0.0', '2020.0.1', '2020.0.2', '2020.0.3', '2020.0.4', '2020.0.5'], buildRange: [4220, 4350] },
-  { year: 2021, versions: ['2021.0.0', '2021.0.1', '2021.0.2', '2021.0.3', '2021.0.4', '2021.0.5', '2021.0.6', '2021.0.7'], buildRange: [4500, 4820] },
-  { year: 2022, versions: ['2022.0.0', '2022.0.1', '2022.0.2', '2022.0.3'], buildRange: [5100, 5420] },
-  { year: 2023, versions: ['2023.0.0', '2023.0.1', '2023.0.2', '2023.0.3', '2023.0.4'], buildRange: [5600, 5940] },
-  { year: 2024, versions: ['2024.0.0', '2024.0.1', '2024.0.2', '2024.0.3', '2024.0.4', '2024.0.5'], buildRange: [6200, 6580] },
-  { year: 2025, versions: ['2025.0.0', '2025.0.1'], buildRange: [6800, 6950] },
+  { year: 2020, versions: ['2020.0.0', '2020.0.1', '2020.0.2', '2020.0.3', '2020.0.4', '2020.0.5', '2020.0.6', '2020.0.7', '2020.0.8'], buildRange: [4220, 4380] },
+  { year: 2021, versions: ['2021.0.0', '2021.0.1', '2021.0.2', '2021.0.3', '2021.0.4', '2021.0.5', '2021.0.6', '2021.0.7', '2021.0.8', '2021.0.9', '2021.0.10'], buildRange: [4500, 4850] },
+  { year: 2022, versions: ['2022.0.0', '2022.0.1', '2022.0.2', '2022.0.3', '2022.0.4', '2022.0.5', '2022.0.6'], buildRange: [5100, 5480] },
+  { year: 2023, versions: ['2023.0.0', '2023.0.1', '2023.0.2', '2023.0.3', '2023.0.4', '2023.0.5', '2023.0.6', '2023.0.7'], buildRange: [5600, 5990] },
+  { year: 2024, versions: ['2024.0.0', '2024.0.1', '2024.0.2', '2024.0.3', '2024.0.4', '2024.0.5', '2024.0.6', '2024.0.7', '2024.0.8'], buildRange: [6200, 6620] },
+  { year: 2025, versions: ['2025.0.0', '2025.0.1', '2025.0.2'], buildRange: [6800, 6980] },
 ];
 
 // Random Adobe Premiere version
@@ -109,8 +109,12 @@ function randomCamtasiaVersion() {
 function getMetadataPreset(preset: string): MetadataValues {
   const now = new Date().toISOString();
 
-  // Random computer/device names for realism
-  const computerNames = ['DESKTOP-7K9XM2P', 'WORKSTATION-5F3QN1', 'PC-STUDIO-X8L', 'EDIT-STATION-4N7', 'RENDER-PC-2K8', 'STUDIO-WS-9F4'];
+  // Random computer/device names for realism (expanded)
+  const computerNames = [
+    'DESKTOP-7K9XM2P', 'WORKSTATION-5F3QN1', 'PC-STUDIO-X8L', 'EDIT-STATION-4N7',
+    'RENDER-PC-2K8', 'STUDIO-WS-9F4', 'GAMING-RIG-3H5', 'OFFICE-PC-8L2',
+    'HOME-STUDIO-6D9', 'CREATOR-PC-4M1', 'LAPTOP-DELL-7X3', 'THINKPAD-W9K'
+  ];
   const randomPC = computerNames[Math.floor(Math.random() * computerNames.length)];
 
   switch (preset) {
@@ -184,16 +188,39 @@ function getMetadataPreset(preset: string): MetadataValues {
     }
     case 'camtasia': {
       const ver = randomCamtasiaVersion();
-      const projectNames = ['Screencast', 'Tutorial', 'Recording', 'Project', 'Presentation', 'Demo', 'Walkthrough'];
+
+      // Expanded project types for maximum diversity
+      const projectNames = [
+        'Screencast', 'Tutorial', 'Recording', 'Project', 'Presentation',
+        'Demo', 'Walkthrough', 'Training', 'Webinar', 'Course',
+        'How-to', 'Review', 'Gameplay', 'Software Demo'
+      ];
       const randomProject = projectNames[Math.floor(Math.random() * projectNames.length)];
+
+      // Export format variations (Camtasia supports multiple formats)
+      const exportFormats = ['MP4', 'MP4 - Smart Player', 'MP4 - 1080p', 'MP4 - 720p', 'MP4 - Custom'];
+      const randomFormat = exportFormats[Math.floor(Math.random() * exportFormats.length)];
+
+      // Quality presets
+      const qualityPresets = ['High', 'Medium', 'Custom', 'Web Optimized', 'Production Max'];
+      const randomQuality = qualityPresets[Math.floor(Math.random() * qualityPresets.length)];
+
+      // Recording sources
+      const recordingSources = ['Screen + Webcam', 'Screen Only', 'Webcam Only', 'Screen + Audio'];
+      const randomSource = recordingSources[Math.floor(Math.random() * recordingSources.length)];
+
       const dateNow = new Date();
       const dateString = `${dateNow.getFullYear()}-${String(dateNow.getMonth() + 1).padStart(2, '0')}-${String(dateNow.getDate()).padStart(2, '0')}`;
+
+      // Recording duration (random for realism)
+      const recordingMinutes = Math.floor(Math.random() * 45) + 5; // 5-50 minutes
+
       return {
         encoder: 'Camtasia Video Encoder',
         writing_application: `TechSmith Camtasia ${ver.version} (Build ${ver.build})`,
         writing_library: `Camtasia ${ver.version}`,
-        comment: `Produced with Camtasia Studio ${ver.version} for Windows - ${randomProject} on ${randomPC}`,
-        description: `Screencast recording: ${randomProject}`,
+        comment: `Produced with Camtasia Studio ${ver.version} for Windows - ${randomProject} on ${randomPC} - Format: ${randomFormat} - Quality: ${randomQuality}`,
+        description: `${randomProject}: ${randomSource} - ${recordingMinutes} min recording`,
         creation_time: now,
         date: dateString,
         handler_name: 'VideoHandler',
