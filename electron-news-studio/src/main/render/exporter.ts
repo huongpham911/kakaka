@@ -13,6 +13,43 @@ function posExpr(pos: string): Pos {
   }
 }
 
+type MetadataValues = {
+  encoder?: string;
+  title?: string;
+  author?: string;
+  comment?: string;
+  copyright?: string;
+  creation_time?: string;
+};
+
+function getMetadataPreset(preset: string): MetadataValues {
+  const now = new Date().toISOString();
+  const year = new Date().getFullYear();
+
+  switch (preset) {
+    case 'adobe-premiere':
+      return {
+        encoder: `Adobe Premiere Pro ${year}`,
+        comment: "Created with Adobe Premiere Pro",
+        creation_time: now,
+      };
+    case 'adobe-after-effects':
+      return {
+        encoder: `Adobe After Effects ${year}`,
+        comment: "Rendered with Adobe After Effects",
+        creation_time: now,
+      };
+    case 'camtasia':
+      return {
+        encoder: `TechSmith Camtasia Studio ${year}`,
+        comment: "Produced with Camtasia Studio",
+        creation_time: now,
+      };
+    default:
+      return {};
+  }
+}
+
 export function createExporter() {
   function asVolDb(db: number) {
     return Math.pow(10, db / 20).toFixed(3);
@@ -277,8 +314,36 @@ export function createExporter() {
       if (bgmIdx >= 0) pipeline.input(tracks.audio.bgm.src);
       if (voiceIdx >= 0) pipeline.input(tracks.audio.voice.src);
 
+      // Prepare metadata
+      const outputOpts = ["-pix_fmt", "yuv420p"];
+
+      if (project.metadata) {
+        const meta = project.metadata;
+        let metadataValues: MetadataValues = {};
+
+        // Apply preset if specified
+        if (meta.preset && meta.preset !== 'none') {
+          metadataValues = getMetadataPreset(meta.preset);
+        }
+
+        // Override with custom values
+        if (meta.encoder) metadataValues.encoder = meta.encoder;
+        if (meta.title) metadataValues.title = meta.title;
+        if (meta.author) metadataValues.author = meta.author;
+        if (meta.comment) metadataValues.comment = meta.comment;
+        if (meta.copyright) metadataValues.copyright = meta.copyright;
+
+        // Add metadata to output options
+        if (metadataValues.encoder) outputOpts.push("-metadata", `encoder=${metadataValues.encoder}`);
+        if (metadataValues.title) outputOpts.push("-metadata", `title=${metadataValues.title}`);
+        if (metadataValues.author) outputOpts.push("-metadata", `artist=${metadataValues.author}`);
+        if (metadataValues.comment) outputOpts.push("-metadata", `comment=${metadataValues.comment}`);
+        if (metadataValues.copyright) outputOpts.push("-metadata", `copyright=${metadataValues.copyright}`);
+        if (metadataValues.creation_time) outputOpts.push("-metadata", `creation_time=${metadataValues.creation_time}`);
+      }
+
       pipeline
-        .outputOptions(["-pix_fmt yuv420p"])
+        .outputOptions(outputOpts)
         .videoCodec("libx264")
         .fps(fps)
         .complexFilter(filter)

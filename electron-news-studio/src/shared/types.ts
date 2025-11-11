@@ -1,5 +1,7 @@
 export type TransitionType = 'none' | 'fade' | 'fadeblack' | 'wipeleft' | 'wiperight' | 'wipeup' | 'wipedown' | 'slideleft' | 'slideright' | 'slideup' | 'slidedown' | 'circlecrop' | 'circleopen' | 'dissolve';
 
+export type MetadataPreset = 'none' | 'adobe-premiere' | 'adobe-after-effects' | 'camtasia' | 'custom';
+
 export type VideoClip = {
   id: string;
   src: string;
@@ -25,6 +27,14 @@ export type Project = {
   width: number;
   height: number;
   duration: number;
+  metadata?: {
+    preset?: MetadataPreset;
+    title?: string;
+    author?: string;
+    comment?: string;
+    copyright?: string;
+    encoder?: string;
+  };
   tracks: {
     intro?: { src: string; duration?: number };
     video: VideoClip[];
