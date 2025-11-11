@@ -1422,7 +1422,7 @@ export default function App() {
             {/* Logo Section */}
             <div className="section">
               <h3 className="section-title">🖼️ Logo</h3>
-              <div className={`dropzone ${dragOver === 'logo' ? 'drag-over' : ''}`}
+              <div className={`dropzone dropzone-compact ${dragOver === 'logo' ? 'drag-over' : ''}`}
                 onDragOver={(e) => handleDragOver(e, 'logo')}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, 'logo')}>
@@ -1431,8 +1431,21 @@ export default function App() {
                   t.logo!.src = (f as any).path ?? "";
                   setP({ ...p });
                 }} />
-                {t.logo?.src && <div className="file-name">🖼️ {t.logo.src.split('/').pop()}</div>}
-                <div className="drop-hint">Drop logo here</div>
+                {t.logo?.src ? (
+                  <div className="media-thumb-container">
+                    <img src={`file://${t.logo.src}`} alt="Logo" className="media-thumb media-thumb-image" />
+                    <div className="media-thumb-info">
+                      <div className="media-thumb-name">{t.logo.src.split('/').pop() || t.logo.src.split('\\').pop()}</div>
+                      <button
+                        onClick={() => { t.logo!.src = ""; setP({ ...p }); }}
+                        className="media-thumb-remove"
+                        title="Remove logo"
+                      >✕</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="drop-hint">Drop logo here or click to browse</div>
+                )}
               </div>
               {t.logo?.src && (
                 <>
@@ -1455,7 +1468,7 @@ export default function App() {
             <div className="section">
               <h3 className="section-title">🎵 Audio</h3>
               <label>BGM</label>
-              <div className={`dropzone ${dragOver === 'bgm' ? 'drag-over' : ''}`}
+              <div className={`dropzone dropzone-compact ${dragOver === 'bgm' ? 'drag-over' : ''}`}
                 onDragOver={(e) => handleDragOver(e, 'bgm')}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, 'bgm')}>
@@ -1463,15 +1476,28 @@ export default function App() {
                   const f=e.target.files?.[0]; if(!f) return;
                   t.audio!.bgm!.src=(f as any).path??""; setP({ ...p });
                 }} />
-                {t.audio?.bgm?.src && <div className="file-name">🎵 {t.audio.bgm.src.split('/').pop()}</div>}
-                <div className="drop-hint">Background music</div>
+                {t.audio?.bgm?.src ? (
+                  <div className="media-thumb-container">
+                    <div className="media-thumb media-thumb-audio">🎵</div>
+                    <div className="media-thumb-info">
+                      <div className="media-thumb-name">{t.audio.bgm.src.split('/').pop() || t.audio.bgm.src.split('\\').pop()}</div>
+                      <button
+                        onClick={() => { t.audio!.bgm!.src = ""; setP({ ...p }); }}
+                        className="media-thumb-remove"
+                        title="Remove BGM"
+                      >✕</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="drop-hint">Background music</div>
+                )}
               </div>
               {t.audio?.bgm?.src && (
                 <><label>Gain (dB)</label><input type="number" value={t.audio?.bgm?.gain ?? -6} onChange={e => { t.audio!.bgm!.gain = Number(e.target.value||-6); setP({ ...p }); }} /></>
               )}
 
               <label>Voice</label>
-              <div className={`dropzone ${dragOver === 'voice' ? 'drag-over' : ''}`}
+              <div className={`dropzone dropzone-compact ${dragOver === 'voice' ? 'drag-over' : ''}`}
                 onDragOver={(e) => handleDragOver(e, 'voice')}
                 onDragLeave={handleDragLeave}
                 onDrop={(e) => handleDrop(e, 'voice')}>
@@ -1479,8 +1505,21 @@ export default function App() {
                   const f=e.target.files?.[0]; if(!f) return;
                   t.audio!.voice!.src=(f as any).path??""; setP({ ...p });
                 }} />
-                {t.audio?.voice?.src && <div className="file-name">🎤 {t.audio.voice.src.split('/').pop()}</div>}
-                <div className="drop-hint">Voice over</div>
+                {t.audio?.voice?.src ? (
+                  <div className="media-thumb-container">
+                    <div className="media-thumb media-thumb-audio">🎤</div>
+                    <div className="media-thumb-info">
+                      <div className="media-thumb-name">{t.audio.voice.src.split('/').pop() || t.audio.voice.src.split('\\').pop()}</div>
+                      <button
+                        onClick={() => { t.audio!.voice!.src = ""; setP({ ...p }); }}
+                        className="media-thumb-remove"
+                        title="Remove voice"
+                      >✕</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="drop-hint">Voice over</div>
+                )}
               </div>
               {t.audio?.voice?.src && (
                 <>
