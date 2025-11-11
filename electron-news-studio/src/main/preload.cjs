@@ -2,6 +2,7 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("electronAPI", {
   export: (project) => ipcRenderer.invoke("export", project),
+  exportWithDialog: (project, defaultFileName) => ipcRenderer.invoke("export-with-dialog", project, defaultFileName),
   saveProject: (projectData) => ipcRenderer.invoke("save-project", projectData),
   loadProject: () => ipcRenderer.invoke("load-project"),
   onExportProgress: (callback) => {

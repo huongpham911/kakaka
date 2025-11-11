@@ -35,6 +35,33 @@ async function createWindow() {
     });
   });
 
+  // Export with save dialog
+  ipcMain.handle("export-with-dialog", async (event, project, defaultFileName: string) => {
+    if (!win) return null;
+
+    const result = await dialog.showSaveDialog(win, {
+      title: "Export Video",
+      defaultPath: defaultFileName,
+      filters: [
+        { name: "MP4 Video", extensions: ["mp4"] },
+        { name: "All Files", extensions: ["*"] }
+      ]
+    });
+
+    if (result.canceled || !result.filePath) return null;
+
+    // Export to the selected path
+    try {
+      await exporter.exportProject(project, (percent, timemark) => {
+        event.sender.send("export-progress", { percent, timemark });
+      }, result.filePath);
+      return result.filePath;
+    } catch (error) {
+      console.error("Export error:", error);
+      throw error;
+    }
+  });
+
   // Save project dialog
   ipcMain.handle("save-project", async (_e, projectData: string) => {
     if (!win) return null;

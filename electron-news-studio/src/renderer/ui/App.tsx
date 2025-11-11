@@ -26,6 +26,7 @@ declare global {
   interface Window {
     electronAPI?: {
       export: (p: Project) => Promise<string>;
+      exportWithDialog: (p: Project, defaultFileName: string) => Promise<string | null>;
       saveProject: (data: string) => Promise<string | null>;
       loadProject: () => Promise<{ path: string; data: string } | null>;
       onExportProgress: (callback: (data: { percent: number; timemark: string }) => void) => () => void;
@@ -116,6 +117,7 @@ export default function App() {
   }>({ isOpen: false, title: '', message: '', onConfirm: () => {} });
   const [recentProjects, setRecentProjects] = useState<Array<{ path: string; name: string; timestamp: number }>>([]);
   const [showRecentMenu, setShowRecentMenu] = useState<boolean>(false);
+  const [currentProjectPath, setCurrentProjectPath] = useState<string | null>(null);
 
   const set = <K extends keyof Project>(k: K, v: Project[K]) => setP(old => ({ ...old, [k]: v }));
   const t = p.tracks;
@@ -594,15 +596,35 @@ export default function App() {
       return;
     }
 
+    // Get default filename from current project path or use "untitled"
+    let defaultFileName = 'untitled';
+    if (currentProjectPath) {
+      const projectFileName = currentProjectPath.split('/').pop() || currentProjectPath.split('\\').pop() || 'untitled';
+      // Remove .nsproj or .json extension and add .mp4
+      defaultFileName = projectFileName.replace(/\.(nsproj|json)$/i, '');
+    }
+    defaultFileName += '.mp4';
+
     try {
       setIsExporting(true);
       setExportProgress({ percent: 0, timemark: "00:00:00" });
-      const out = await window.electronAPI.export(p);
+
+      // Show save dialog to let user choose export location and filename
+      const outputPath = await window.electronAPI.exportWithDialog(p, defaultFileName);
+
+      // If user cancelled the dialog
+      if (!outputPath) {
+        setIsExporting(false);
+        setExportProgress(null);
+        showToast('info', 'Export cancelled');
+        return;
+      }
+
       setExportProgress({ percent: 100, timemark: "Complete" });
       setTimeout(() => {
         setIsExporting(false);
         setExportProgress(null);
-        showToast('success', `Video exported successfully: ${out}`, 5000);
+        showToast('success', `Video exported successfully: ${outputPath}`, 5000);
       }, 500);
     } catch (e: any) {
       console.error(e);
@@ -663,6 +685,7 @@ export default function App() {
       const projectData = JSON.stringify(p, null, 2);
       const filePath = await window.electronAPI.saveProject(projectData);
       if (filePath) {
+        setCurrentProjectPath(filePath);
         localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, filePath);
         addToRecentProjects(filePath);
         showToast('success', `Project saved: ${filePath}`);
@@ -684,6 +707,7 @@ export default function App() {
       if (result) {
         const loadedProject = JSON.parse(result.data);
         setP(loadedProject);
+        setCurrentProjectPath(result.path);
         localStorage.setItem(STORAGE_KEYS.LAST_PROJECT_PATH, result.path);
         addToRecentProjects(result.path);
         showToast('success', `Project loaded: ${result.path}`);

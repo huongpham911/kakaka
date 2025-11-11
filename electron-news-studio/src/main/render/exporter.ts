@@ -20,7 +20,8 @@ export function createExporter() {
 
   async function exportProject(
     project: any,
-    onProgress?: (percent: number, timemark: string) => void
+    onProgress?: (percent: number, timemark: string) => void,
+    outputPath?: string
   ): Promise<string> {
     const { width, height, fps, duration, tracks } = project;
     const videoClips = tracks.video || [];
@@ -31,7 +32,7 @@ export function createExporter() {
       throw new Error("No video content (need at least intro, main clips, or outro)");
     }
 
-    const out = path.resolve(process.cwd(), "output_news.mp4");
+    const out = outputPath || path.resolve(process.cwd(), "output_news.mp4");
     const vf: string[] = [];
 
     // Track input indices
