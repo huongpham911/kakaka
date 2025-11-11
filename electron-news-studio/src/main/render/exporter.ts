@@ -29,77 +29,114 @@ type MetadataValues = {
   language?: string;
 };
 
-// Generate random version components for realistic metadata
-function randomVersion() {
-  const major = 24; // Current Adobe year is 2024
-  const minor = Math.floor(Math.random() * 7); // 0-6
-  const patch = Math.floor(Math.random() * 10); // 0-9
-  const build = Math.floor(Math.random() * 100) + 1; // 1-100
-  return { major, minor, patch, build };
+// Adobe Premiere Pro version database (2020-2025)
+const adobePremiereVersions = [
+  { year: 2020, versions: ['14.0', '14.1', '14.2', '14.3', '14.4', '14.5', '14.9'], buildRange: [1, 69] },
+  { year: 2021, versions: ['15.0', '15.1', '15.2', '15.4'], buildRange: [1, 47] },
+  { year: 2022, versions: ['22.0', '22.1', '22.2', '22.3', '22.4', '22.5', '22.6'], buildRange: [1, 101] },
+  { year: 2023, versions: ['23.0', '23.1', '23.2', '23.3', '23.4', '23.5', '23.6'], buildRange: [1, 69] },
+  { year: 2024, versions: ['24.0', '24.1', '24.2', '24.3', '24.4', '24.5', '24.6'], buildRange: [1, 100] },
+  { year: 2025, versions: ['25.0', '25.1'], buildRange: [1, 30] },
+];
+
+// Adobe After Effects version database (2020-2025)
+const adobeAfterEffectsVersions = [
+  { year: 2020, versions: ['17.0', '17.0.1', '17.1', '17.1.1', '17.5'], buildRange: [1, 60] },
+  { year: 2021, versions: ['18.0', '18.1', '18.2', '18.4'], buildRange: [1, 52] },
+  { year: 2022, versions: ['22.0', '22.1', '22.2', '22.3', '22.4', '22.5', '22.6'], buildRange: [1, 112] },
+  { year: 2023, versions: ['23.0', '23.1', '23.2', '23.3', '23.4', '23.5', '23.6'], buildRange: [1, 83] },
+  { year: 2024, versions: ['24.0', '24.1', '24.2', '24.3', '24.4', '24.5'], buildRange: [1, 95] },
+  { year: 2025, versions: ['25.0'], buildRange: [1, 25] },
+];
+
+// Camtasia Studio version database (2020-2025)
+const camtasiaVersions = [
+  { year: 2020, versions: ['2020.0.0', '2020.0.1', '2020.0.2', '2020.0.3', '2020.0.4', '2020.0.5'], buildRange: [4220, 4350] },
+  { year: 2021, versions: ['2021.0.0', '2021.0.1', '2021.0.2', '2021.0.3', '2021.0.4', '2021.0.5', '2021.0.6', '2021.0.7'], buildRange: [4500, 4820] },
+  { year: 2022, versions: ['2022.0.0', '2022.0.1', '2022.0.2', '2022.0.3'], buildRange: [5100, 5420] },
+  { year: 2023, versions: ['2023.0.0', '2023.0.1', '2023.0.2', '2023.0.3', '2023.0.4'], buildRange: [5600, 5940] },
+  { year: 2024, versions: ['2024.0.0', '2024.0.1', '2024.0.2', '2024.0.3', '2024.0.4', '2024.0.5'], buildRange: [6200, 6580] },
+  { year: 2025, versions: ['2025.0.0', '2025.0.1'], buildRange: [6800, 6950] },
+];
+
+// Random Adobe Premiere version
+function randomPremiereVersion() {
+  const yearData = adobePremiereVersions[Math.floor(Math.random() * adobePremiereVersions.length)];
+  const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
+  const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
+  return { year: yearData.year, version, build };
+}
+
+// Random After Effects version
+function randomAfterEffectsVersion() {
+  const yearData = adobeAfterEffectsVersions[Math.floor(Math.random() * adobeAfterEffectsVersions.length)];
+  const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
+  const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
+  return { year: yearData.year, version, build };
+}
+
+// Random Camtasia version
+function randomCamtasiaVersion() {
+  const yearData = camtasiaVersions[Math.floor(Math.random() * camtasiaVersions.length)];
+  const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
+  const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
+  return { year: yearData.year, version, build };
 }
 
 function getMetadataPreset(preset: string): MetadataValues {
   const now = new Date().toISOString();
-  const year = new Date().getFullYear();
 
   // Random computer/device names for realism
-  const computerNames = ['DESKTOP-7K9XM2P', 'WORKSTATION-5F3QN1', 'PC-STUDIO-X8L', 'EDIT-STATION-4N7'];
+  const computerNames = ['DESKTOP-7K9XM2P', 'WORKSTATION-5F3QN1', 'PC-STUDIO-X8L', 'EDIT-STATION-4N7', 'RENDER-PC-2K8', 'STUDIO-WS-9F4'];
   const randomPC = computerNames[Math.floor(Math.random() * computerNames.length)];
 
   switch (preset) {
     case 'adobe-premiere': {
-      const ver = randomVersion();
-      const versionString = `${ver.major}.${ver.minor}.${ver.patch}`;
-      const buildNumber = `Build ${ver.build}`;
+      const ver = randomPremiereVersion();
       return {
-        encoder: `Adobe Premiere Pro ${year} (Windows)`,
-        comment: `Encoded by Adobe Premiere Pro ${versionString} ${buildNumber}`,
+        encoder: `Adobe Premiere Pro ${ver.year} (Windows)`,
+        comment: `Encoded by Adobe Premiere Pro ${ver.version} Build ${ver.build}`,
         creation_time: now,
         handler_name: 'VideoHandler',
         timecode: '00:00:00:00',
         major_brand: 'isom',
         compatible_brands: 'isomiso2avc1mp41',
         make: 'Adobe Systems Incorporated',
-        model: `Premiere Pro ${year}`,
+        model: `Premiere Pro ${ver.year}`,
         language: 'eng',
       };
     }
     case 'adobe-after-effects': {
-      const ver = randomVersion();
-      const versionString = `${ver.major}.${ver.minor}.${ver.patch}`;
+      const ver = randomAfterEffectsVersion();
       const renderQueue = Math.floor(Math.random() * 999) + 1;
       const compName = `Comp ${Math.floor(Math.random() * 50) + 1}`;
       return {
-        encoder: `Adobe After Effects ${year} (Windows)`,
-        comment: `Rendered with Adobe After Effects ${versionString} (Build ${ver.build}) - ${compName} - Render Queue Item ${renderQueue}`,
+        encoder: `Adobe After Effects ${ver.year} (Windows)`,
+        comment: `Rendered with Adobe After Effects ${ver.version} (Build ${ver.build}) - ${compName} - Render Queue Item ${renderQueue}`,
         creation_time: now,
         handler_name: 'Core Media Video',
         timecode: '00:00:00:00',
         major_brand: 'qt  ',
         compatible_brands: 'qt  ',
         make: 'Adobe Systems Incorporated',
-        model: `After Effects ${year}`,
+        model: `After Effects ${ver.year}`,
         language: 'eng',
       };
     }
     case 'camtasia': {
-      const majorVer = year; // Camtasia versions match year
-      const minorVer = Math.floor(Math.random() * 3); // 0-2
-      const patchVer = Math.floor(Math.random() * 10); // 0-9
-      const build = 5000 + Math.floor(Math.random() * 3000); // 5000-7999
-      const versionString = `${majorVer}.${minorVer}.${patchVer}`;
-      const projectNames = ['Screencast', 'Tutorial', 'Recording', 'Project', 'Presentation'];
+      const ver = randomCamtasiaVersion();
+      const projectNames = ['Screencast', 'Tutorial', 'Recording', 'Project', 'Presentation', 'Demo', 'Walkthrough'];
       const randomProject = projectNames[Math.floor(Math.random() * projectNames.length)];
       return {
-        encoder: `TechSmith Camtasia Studio ${versionString} (Build ${build})`,
-        comment: `Produced with Camtasia Studio ${versionString} for Windows - ${randomProject} on ${randomPC}`,
+        encoder: `TechSmith Camtasia Studio ${ver.version} (Build ${ver.build})`,
+        comment: `Produced with Camtasia Studio ${ver.version} for Windows - ${randomProject} on ${randomPC}`,
         creation_time: now,
         handler_name: 'VideoHandler',
         timecode: '00:00:00;00',
         major_brand: 'mp42',
         compatible_brands: 'mp42isom',
         make: 'TechSmith Corporation',
-        model: `Camtasia ${year}`,
+        model: `Camtasia ${ver.year}`,
         language: 'eng',
       };
     }
