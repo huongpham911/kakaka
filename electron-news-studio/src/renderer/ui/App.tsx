@@ -1246,6 +1246,140 @@ export default function App() {
         {/* ==================== MEDIA TAB ==================== */}
         {activeTab === 'media' && (
           <div className="tab-content">
+            {/* Video Clips Library */}
+            {t.video.length > 0 && (
+              <div className="section">
+                <h3 className="section-title">🎬 Video Clips ({t.video.length})</h3>
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(2, 1fr)',
+                  gap: '8px',
+                  marginTop: '12px'
+                }}>
+                  {t.video.map((clip, idx) => {
+                    const filename = clip.src.split('/').pop() || clip.src.split('\\').pop() || 'video';
+                    const shortName = filename.length > 20 ? filename.substring(0, 17) + '...' : filename;
+                    const isSelected = selectedClips.includes(clip.id);
+                    return (
+                      <div
+                        key={clip.id}
+                        onClick={() => {
+                          // Play this clip in preview
+                          setPreviewVideoSrc(null); // Clear preview mode
+                          if (videoRef.current) {
+                            videoRef.current.src = clip.src;
+                            videoRef.current.load();
+                            videoRef.current.play().catch(e => console.error('Play error:', e));
+                            setIsPlaying(true);
+                          }
+                          // Select this clip
+                          setSelectedClips([clip.id]);
+                          showToast('info', `Playing clip #${idx + 1}`);
+                        }}
+                        style={{
+                          position: 'relative',
+                          cursor: 'pointer',
+                          border: isSelected ? '2px solid #3b82f6' : '2px solid var(--border)',
+                          borderRadius: '6px',
+                          overflow: 'hidden',
+                          background: 'var(--bg-elevated)',
+                          transition: 'all 0.2s',
+                          aspectRatio: '16/9'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.borderColor = '#3b82f6';
+                            e.currentTarget.style.transform = 'scale(1.02)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSelected) {
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.transform = 'scale(1)';
+                          }
+                        }}
+                      >
+                        {/* Video Thumbnail */}
+                        <video
+                          src={clip.src}
+                          style={{
+                            width: '100%',
+                            height: '100%',
+                            objectFit: 'cover',
+                            pointerEvents: 'none'
+                          }}
+                          muted
+                        />
+
+                        {/* Overlay Info */}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          padding: '6px',
+                          background: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)',
+                          color: 'white'
+                        }}>
+                          <div style={{
+                            fontSize: '10px',
+                            fontWeight: '600',
+                            marginBottom: '2px',
+                            whiteSpace: 'nowrap',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis'
+                          }}>
+                            #{idx + 1} {shortName}
+                          </div>
+                          <div style={{
+                            fontSize: '9px',
+                            opacity: 0.9
+                          }}>
+                            {clip.trim ? (
+                              <>✂️ {(clip.trim.end - clip.trim.start).toFixed(1)}s</>
+                            ) : (
+                              <>{clip.duration || 5}s</>
+                            )} • {clip.transition?.type || 'fade'}
+                          </div>
+                        </div>
+
+                        {/* Play Icon Overlay */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          fontSize: '24px',
+                          opacity: 0.8,
+                          pointerEvents: 'none',
+                          textShadow: '0 2px 4px rgba(0,0,0,0.5)'
+                        }}>
+                          ▶️
+                        </div>
+
+                        {/* Selected Badge */}
+                        {isSelected && (
+                          <div style={{
+                            position: 'absolute',
+                            top: '6px',
+                            right: '6px',
+                            padding: '2px 6px',
+                            background: '#3b82f6',
+                            color: 'white',
+                            borderRadius: '4px',
+                            fontSize: '9px',
+                            fontWeight: '600'
+                          }}>
+                            ✓
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Selected Clip Editor */}
             {currentClip && (
               <div className="section">
