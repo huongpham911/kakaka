@@ -35,6 +35,13 @@ async function createWindow() {
     });
   });
 
+  ipcMain.handle("preview", async (event, project) => {
+    return await exporter.generatePreview(project, (percent, timemark) => {
+      // Send progress update to renderer
+      event.sender.send("preview-progress", { percent, timemark });
+    });
+  });
+
   // Save project dialog
   ipcMain.handle("save-project", async (_e, projectData: string) => {
     if (!win) return null;

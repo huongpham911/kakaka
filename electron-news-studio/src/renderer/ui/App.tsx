@@ -26,9 +26,11 @@ declare global {
   interface Window {
     electronAPI?: {
       export: (p: Project) => Promise<string>;
+      preview: (p: Project) => Promise<string>;
       saveProject: (data: string) => Promise<string | null>;
       loadProject: () => Promise<{ path: string; data: string } | null>;
       onExportProgress: (callback: (data: { percent: number; timemark: string }) => void) => () => void;
+      onPreviewProgress: (callback: (data: { percent: number; timemark: string }) => void) => () => void;
     }
   }
 }
@@ -105,6 +107,9 @@ export default function App() {
   const [autoSaveEnabled, setAutoSaveEnabled] = useState<boolean>(true);
   const [exportProgress, setExportProgress] = useState<{ percent: number; timemark: string } | null>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [previewProgress, setPreviewProgress] = useState<{ percent: number; timemark: string } | null>(null);
+  const [isGeneratingPreview, setIsGeneratingPreview] = useState(false);
+  const [previewVideoSrc, setPreviewVideoSrc] = useState<string | null>(null);
   const [toasts, setToasts] = useState<Toast[]>([]);
   const [confirmModal, setConfirmModal] = useState<{
     isOpen: boolean;
@@ -610,6 +615,52 @@ export default function App() {
     }
   }
 
+  async function onPreview() {
+    if (!window.electronAPI?.preview) {
+      showToast('error', 'Preview not available. Run via Electron.');
+      return;
+    }
+
+    // Validate project before preview
+    const validation = validateProject(p);
+    if (!validation.valid) {
+      showToast('error', validation.error || 'Project validation failed');
+      return;
+    }
+
+    try {
+      setIsGeneratingPreview(true);
+      setPreviewProgress({ percent: 0, timemark: "00:00:00" });
+      showToast('info', 'Generating preview (first 10 seconds)...');
+
+      const previewPath = await window.electronAPI.preview(p);
+
+      setPreviewProgress({ percent: 100, timemark: "Complete" });
+      setTimeout(() => {
+        setIsGeneratingPreview(false);
+        setPreviewProgress(null);
+
+        // Load preview video
+        setPreviewVideoSrc(previewPath);
+        showToast('success', 'Preview ready! Playing now...', 3000);
+
+        // Auto-play preview
+        setTimeout(() => {
+          if (videoRef.current) {
+            videoRef.current.load();
+            videoRef.current.play().catch(e => console.error('Auto-play failed:', e));
+            setIsPlaying(true);
+          }
+        }, 100);
+      }, 500);
+    } catch (e: any) {
+      console.error(e);
+      setIsGeneratingPreview(false);
+      setPreviewProgress(null);
+      showToast('error', `Preview error: ${e?.message || 'Unknown error'}`);
+    }
+  }
+
   // Add project to recent projects list
   const addToRecentProjects = useCallback((filePath: string) => {
     const projectName = filePath.split('/').pop() || filePath.split('\\').pop() || 'Untitled';
@@ -937,6 +988,17 @@ export default function App() {
 
     const cleanup = window.electronAPI.onExportProgress((data) => {
       setExportProgress(data);
+    });
+
+    return cleanup;
+  }, []);
+
+  // Listen to preview progress
+  useEffect(() => {
+    if (!window.electronAPI?.onPreviewProgress) return;
+
+    const cleanup = window.electronAPI.onPreviewProgress((data) => {
+      setPreviewProgress(data);
     });
 
     return cleanup;
@@ -1558,11 +1620,11 @@ export default function App() {
       <div className="preview-section">
         <div className="preview-container" ref={previewContainerRef}>
           <div className="preview-video">
-            {t.video.length > 0 && t.video[0].src ? (
+            {(previewVideoSrc || (t.video.length > 0 && t.video[0].src)) ? (
               <>
                 <video
                   ref={videoRef}
-                  src={t.video[0].src}
+                  src={previewVideoSrc || t.video[0].src}
                   onTimeUpdate={handleVideoTimeUpdate}
                   onEnded={handleVideoEnded}
                   style={{
@@ -1572,6 +1634,49 @@ export default function App() {
                     borderRadius: '12px'
                   }}
                 />
+                {previewVideoSrc && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '12px',
+                    left: '12px',
+                    display: 'flex',
+                    gap: '8px',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{
+                      padding: '6px 12px',
+                      background: 'rgba(59, 130, 246, 0.9)',
+                      color: 'white',
+                      borderRadius: '6px',
+                      fontSize: '12px',
+                      fontWeight: '600',
+                      backdropFilter: 'blur(8px)'
+                    }}>
+                      🎬 Preview Mode (10s)
+                    </div>
+                    <button
+                      onClick={() => {
+                        setPreviewVideoSrc(null);
+                        setIsPlaying(false);
+                        showToast('info', 'Exited preview mode');
+                      }}
+                      style={{
+                        padding: '6px 12px',
+                        background: 'rgba(239, 68, 68, 0.9)',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '6px',
+                        fontSize: '12px',
+                        fontWeight: '600',
+                        cursor: 'pointer',
+                        backdropFilter: 'blur(8px)'
+                      }}
+                      title="Exit preview mode and return to source video"
+                    >
+                      ✕ Exit Preview
+                    </button>
+                  </div>
+                )}
 
                 {/* Video Progress Bar */}
                 <div
@@ -1860,8 +1965,13 @@ export default function App() {
 
         <div className="toolbar-divider"></div>
 
-        <button className="btn-preview" onClick={() => showToast('info', 'Preview feature coming soon!')}>
-          👁️ Preview
+        <button
+          className="btn-preview"
+          onClick={onPreview}
+          disabled={disabled || isGeneratingPreview || isExporting}
+          title="Generate and play preview with all effects (first 10 seconds)"
+        >
+          {isGeneratingPreview ? '⏳ Generating...' : '👁️ Preview'}
         </button>
 
         <button className="btn-render" onClick={onExport} disabled={disabled || isExporting}>
@@ -1882,6 +1992,24 @@ export default function App() {
             <div
               className="export-progress-fill"
               style={{width: `${exportProgress.percent}%`}}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* PREVIEW PROGRESS BAR */}
+      {previewProgress && (
+        <div className="export-progress-container" style={{background: 'rgba(59, 130, 246, 0.1)', borderColor: '#3b82f6'}}>
+          <div className="export-progress-info">
+            <span className="export-progress-label" style={{color: '#3b82f6'}}>
+              Generating preview... {previewProgress.percent.toFixed(1)}%
+            </span>
+            <span className="export-progress-time" style={{color: '#3b82f6'}}>{previewProgress.timemark}</span>
+          </div>
+          <div className="export-progress-bar">
+            <div
+              className="export-progress-fill"
+              style={{width: `${previewProgress.percent}%`, background: '#3b82f6'}}
             />
           </div>
         </div>
