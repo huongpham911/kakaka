@@ -86,6 +86,7 @@ export default function App() {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [selectedClips, setSelectedClips] = useState<string[]>([]);
   const [copiedClips, setCopiedClips] = useState<VideoClip[]>([]);
+  const [previewVideoIndex, setPreviewVideoIndex] = useState<number>(0); // Track which video is in preview
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
@@ -981,6 +982,15 @@ export default function App() {
     };
   }, [isDraggingPlayhead]);
 
+  // Reset preview index if it becomes out of bounds (e.g., video deleted)
+  useEffect(() => {
+    if (previewVideoIndex >= t.video.length && t.video.length > 0) {
+      setPreviewVideoIndex(0);
+    } else if (t.video.length === 0) {
+      setPreviewVideoIndex(0);
+    }
+  }, [t.video.length, previewVideoIndex]);
+
   // Seekbar dragging
   useEffect(() => {
     if (!isDraggingSeekbar) return;
@@ -1558,11 +1568,27 @@ export default function App() {
       <div className="preview-section">
         <div className="preview-container" ref={previewContainerRef}>
           <div className="preview-video">
-            {t.video.length > 0 && t.video[0].src ? (
+            {t.video.length > 0 && t.video[previewVideoIndex]?.src ? (
               <>
+                <div style={{
+                  position: 'absolute',
+                  top: '8px',
+                  left: '12px',
+                  background: 'rgba(0, 0, 0, 0.7)',
+                  color: 'white',
+                  padding: '6px 12px',
+                  borderRadius: '6px',
+                  fontSize: '12px',
+                  fontWeight: '600',
+                  zIndex: 10,
+                  backdropFilter: 'blur(4px)'
+                }}>
+                  👁️ Preview: Clip #{previewVideoIndex + 1}
+                </div>
                 <video
                   ref={videoRef}
-                  src={t.video[0].src}
+                  src={t.video[previewVideoIndex].src}
+                  key={t.video[previewVideoIndex].src} // Force reload when video changes
                   onTimeUpdate={handleVideoTimeUpdate}
                   onEnded={handleVideoEnded}
                   style={{
@@ -2103,6 +2129,10 @@ export default function App() {
                       const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
                       const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
                       toggleClipSelection(clip.id, isCtrlOrCmd);
+                      // Update preview to show this video
+                      setPreviewVideoIndex(idx);
+                      setCurrentTime(0); // Reset to start of video
+                      setIsPlaying(false); // Pause when switching videos
                     }}
                     title={`${filename}\nClick to select, Ctrl/Cmd+Click for multi-select\nDrag to reorder`}
                     style={{
@@ -2119,6 +2149,9 @@ export default function App() {
                         📹 Clip #{idx + 1}
                         {clip.trim && (clip.trim.start > 0 || clip.trim.end < (clip.duration || 5)) && (
                           <span style={{marginLeft: '4px', fontSize: '10px', opacity: 0.7}}>✂️</span>
+                        )}
+                        {previewVideoIndex === idx && (
+                          <span style={{marginLeft: '4px', fontSize: '10px'}} title="Currently in preview">👁️</span>
                         )}
                       </div>
                     </div>
