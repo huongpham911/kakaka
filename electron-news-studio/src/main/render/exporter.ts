@@ -1,3 +1,4 @@
+// Last verified: 2025-11-12 10:23:50 UTC
 import ffmpeg from "fluent-ffmpeg";
 import path from "node:path";
 
