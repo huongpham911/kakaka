@@ -46,6 +46,7 @@ const defaultProj: Project = {
   width: 1920,
   height: 1080,
   duration: 15,
+  metadata: { preset: "adobe-premiere" },
   tracks: {
     video: [],
     logo: { src: "", pos: "top-right", opacity: 0.9, scale: 220, start: 0 },
@@ -1506,6 +1507,63 @@ export default function App() {
               <label>Color</label>
               <input value={t.frame?.color ?? "white@0.85"} onChange={e => { t.frame!.color = e.target.value; setP({ ...p }); }}
                 placeholder="white@0.85" disabled={!t.frame?.enable} />
+            </div>
+
+            {/* Metadata */}
+            <div className="section">
+              <h3 className="section-title">📝 Video Metadata</h3>
+              <label>Preset</label>
+              <select value={p.metadata?.preset ?? "none"} onChange={e => {
+                if (!p.metadata) p.metadata = {};
+                p.metadata.preset = e.target.value as any;
+                setP({ ...p });
+              }}>
+                <option value="none">None</option>
+                <option value="adobe-premiere">Adobe Premiere Pro</option>
+                <option value="adobe-after-effects">Adobe After Effects</option>
+                <option value="adobe-media-encoder">Adobe Media Encoder</option>
+                <option value="camtasia">Camtasia Studio</option>
+                <option value="custom">Custom</option>
+              </select>
+
+              {p.metadata?.preset === 'custom' && (
+                <>
+                  <label style={{marginTop: '12px'}}>Encoder</label>
+                  <input value={p.metadata?.encoder ?? ""} onChange={e => {
+                    if (!p.metadata) p.metadata = {};
+                    p.metadata.encoder = e.target.value;
+                    setP({ ...p });
+                  }} placeholder="e.g., My Custom Editor 2025" />
+
+                  <label>Title</label>
+                  <input value={p.metadata?.title ?? ""} onChange={e => {
+                    if (!p.metadata) p.metadata = {};
+                    p.metadata.title = e.target.value;
+                    setP({ ...p });
+                  }} placeholder="Video title" />
+
+                  <label>Author</label>
+                  <input value={p.metadata?.author ?? ""} onChange={e => {
+                    if (!p.metadata) p.metadata = {};
+                    p.metadata.author = e.target.value;
+                    setP({ ...p });
+                  }} placeholder="Author name" />
+
+                  <label>Comment</label>
+                  <input value={p.metadata?.comment ?? ""} onChange={e => {
+                    if (!p.metadata) p.metadata = {};
+                    p.metadata.comment = e.target.value;
+                    setP({ ...p });
+                  }} placeholder="Additional comments" />
+
+                  <label>Copyright</label>
+                  <input value={p.metadata?.copyright ?? ""} onChange={e => {
+                    if (!p.metadata) p.metadata = {};
+                    p.metadata.copyright = e.target.value;
+                    setP({ ...p });
+                  }} placeholder="Copyright information" />
+                </>
+              )}
             </div>
 
             {/* Auto-Backup */}

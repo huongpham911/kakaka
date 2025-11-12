@@ -1,3 +1,4 @@
+// Last verified: 2025-11-12 10:23:50 UTC
 import ffmpeg from "fluent-ffmpeg";
 import path from "node:path";
 
@@ -10,6 +11,321 @@ function posExpr(pos: string): Pos {
     case "bottom-right": return { x: "W-w-20",   y: "H-h-20" };
     case "center":       return { x: "(W-w)/2",  y: "(H-h)/2" };
     default:             return { x: "W-w-20",   y: "20" };
+  }
+}
+
+type MetadataValues = {
+  // Core metadata
+  encoder?: string;
+  title?: string;
+  author?: string;
+  comment?: string;
+  copyright?: string;
+  description?: string;
+
+  // Timing metadata
+  creation_time?: string;
+  date?: string;
+
+  // Technical metadata
+  handler_name?: string;
+  timecode?: string;
+  major_brand?: string;
+  compatible_brands?: string;
+  language?: string;
+
+  // Producer metadata
+  make?: string;
+  model?: string;
+  writing_application?: string;
+  writing_library?: string;
+  genre?: string;
+
+  // Extended professional metadata
+  keywords?: string;
+  category?: string;
+  album?: string;
+  album_artist?: string;
+  composer?: string;
+  performer?: string;
+  publisher?: string;
+  track?: string;
+  disc?: string;
+  synopsis?: string;
+  grouping?: string;
+
+  // QuickTime-specific
+  location?: string;
+  location_iso6709?: string;
+  software_version?: string;
+};
+
+// Adobe Premiere Pro version database (2020-2025)
+const adobePremiereVersions = [
+  { year: 2020, versions: ['14.0', '14.1', '14.2', '14.3', '14.4', '14.5', '14.9'], buildRange: [1, 69] },
+  { year: 2021, versions: ['15.0', '15.1', '15.2', '15.4'], buildRange: [1, 47] },
+  { year: 2022, versions: ['22.0', '22.1', '22.2', '22.3', '22.4', '22.5', '22.6'], buildRange: [1, 101] },
+  { year: 2023, versions: ['23.0', '23.1', '23.2', '23.3', '23.4', '23.5', '23.6'], buildRange: [1, 69] },
+  { year: 2024, versions: ['24.0', '24.1', '24.2', '24.3', '24.4', '24.5', '24.6'], buildRange: [1, 100] },
+  { year: 2025, versions: ['25.0', '25.1'], buildRange: [1, 30] },
+];
+
+// Adobe After Effects version database (2020-2025)
+const adobeAfterEffectsVersions = [
+  { year: 2020, versions: ['17.0', '17.0.1', '17.1', '17.1.1', '17.5'], buildRange: [1, 60] },
+  { year: 2021, versions: ['18.0', '18.1', '18.2', '18.4'], buildRange: [1, 52] },
+  { year: 2022, versions: ['22.0', '22.1', '22.2', '22.3', '22.4', '22.5', '22.6'], buildRange: [1, 112] },
+  { year: 2023, versions: ['23.0', '23.1', '23.2', '23.3', '23.4', '23.5', '23.6'], buildRange: [1, 83] },
+  { year: 2024, versions: ['24.0', '24.1', '24.2', '24.3', '24.4', '24.5'], buildRange: [1, 95] },
+  { year: 2025, versions: ['25.0'], buildRange: [1, 25] },
+];
+
+// Adobe Media Encoder version database (2020-2025)
+const adobeMediaEncoderVersions = [
+  { year: 2020, versions: ['14.0', '14.0.1', '14.1', '14.2', '14.3', '14.4', '14.5'], buildRange: [1, 73] },
+  { year: 2021, versions: ['15.0', '15.1', '15.2', '15.4'], buildRange: [1, 46] },
+  { year: 2022, versions: ['22.0', '22.1', '22.2', '22.3', '22.4', '22.5', '22.6'], buildRange: [1, 101] },
+  { year: 2023, versions: ['23.0', '23.1', '23.2', '23.3', '23.4', '23.5', '23.6'], buildRange: [1, 71] },
+  { year: 2024, versions: ['24.0', '24.1', '24.2', '24.3', '24.4', '24.5', '24.6'], buildRange: [1, 97] },
+  { year: 2025, versions: ['25.0', '25.1'], buildRange: [1, 28] },
+];
+
+// Camtasia Studio version database (2020-2025) - Expanded for maximum diversity
+const camtasiaVersions = [
+  { year: 2020, versions: ['2020.0.0', '2020.0.1', '2020.0.2', '2020.0.3', '2020.0.4', '2020.0.5', '2020.0.6', '2020.0.7', '2020.0.8'], buildRange: [4220, 4380] },
+  { year: 2021, versions: ['2021.0.0', '2021.0.1', '2021.0.2', '2021.0.3', '2021.0.4', '2021.0.5', '2021.0.6', '2021.0.7', '2021.0.8', '2021.0.9', '2021.0.10'], buildRange: [4500, 4850] },
+  { year: 2022, versions: ['2022.0.0', '2022.0.1', '2022.0.2', '2022.0.3', '2022.0.4', '2022.0.5', '2022.0.6'], buildRange: [5100, 5480] },
+  { year: 2023, versions: ['2023.0.0', '2023.0.1', '2023.0.2', '2023.0.3', '2023.0.4', '2023.0.5', '2023.0.6', '2023.0.7'], buildRange: [5600, 5990] },
+  { year: 2024, versions: ['2024.0.0', '2024.0.1', '2024.0.2', '2024.0.3', '2024.0.4', '2024.0.5', '2024.0.6', '2024.0.7', '2024.0.8'], buildRange: [6200, 6620] },
+  { year: 2025, versions: ['2025.0.0', '2025.0.1', '2025.0.2'], buildRange: [6800, 6980] },
+];
+
+// Random Adobe Premiere version
+function randomPremiereVersion() {
+  const yearData = adobePremiereVersions[Math.floor(Math.random() * adobePremiereVersions.length)];
+  const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
+  const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
+  return { year: yearData.year, version, build };
+}
+
+// Random After Effects version
+function randomAfterEffectsVersion() {
+  const yearData = adobeAfterEffectsVersions[Math.floor(Math.random() * adobeAfterEffectsVersions.length)];
+  const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
+  const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
+  return { year: yearData.year, version, build };
+}
+
+// Random Media Encoder version
+function randomMediaEncoderVersion() {
+  const yearData = adobeMediaEncoderVersions[Math.floor(Math.random() * adobeMediaEncoderVersions.length)];
+  const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
+  const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
+  return { year: yearData.year, version, build };
+}
+
+// Random Camtasia version
+function randomCamtasiaVersion() {
+  const yearData = camtasiaVersions[Math.floor(Math.random() * camtasiaVersions.length)];
+  const version = yearData.versions[Math.floor(Math.random() * yearData.versions.length)];
+  const build = Math.floor(Math.random() * (yearData.buildRange[1] - yearData.buildRange[0] + 1)) + yearData.buildRange[0];
+  return { year: yearData.year, version, build };
+}
+
+function getMetadataPreset(preset: string): MetadataValues {
+  const now = new Date().toISOString();
+
+  // Random computer/device names for realism (expanded)
+  const computerNames = [
+    'DESKTOP-7K9XM2P', 'WORKSTATION-5F3QN1', 'PC-STUDIO-X8L', 'EDIT-STATION-4N7',
+    'RENDER-PC-2K8', 'STUDIO-WS-9F4', 'GAMING-RIG-3H5', 'OFFICE-PC-8L2',
+    'HOME-STUDIO-6D9', 'CREATOR-PC-4M1', 'LAPTOP-DELL-7X3', 'THINKPAD-W9K'
+  ];
+  const randomPC = computerNames[Math.floor(Math.random() * computerNames.length)];
+
+  switch (preset) {
+    case 'adobe-premiere': {
+      const ver = randomPremiereVersion();
+      const dateNow = new Date();
+      const dateString = `${dateNow.getFullYear()}-${String(dateNow.getMonth() + 1).padStart(2, '0')}-${String(dateNow.getDate()).padStart(2, '0')}`;
+
+      // Random project/sequence names
+      const projectNames = ['Sequence 01', 'Final Edit', 'Master Sequence', 'Timeline 1', 'Main Edit'];
+      const randomProject = projectNames[Math.floor(Math.random() * projectNames.length)];
+
+      return {
+        encoder: 'AVC Coding',
+        writing_application: `Adobe Premiere Pro ${ver.year} ${ver.version} (Windows)`,
+        writing_library: `Adobe Premiere Pro Core ${ver.version}`,
+        software_version: `${ver.version}.${ver.build}`,
+        comment: `Encoded by Adobe Premiere Pro ${ver.version} Build ${ver.build}`,
+        description: 'Video exported from Adobe Premiere Pro',
+        synopsis: `Professional video editing project - ${randomProject}`,
+        creation_time: now,
+        date: dateString,
+        handler_name: 'VideoHandler',
+        timecode: '00:00:00:00',
+        major_brand: 'isom',
+        compatible_brands: 'isomiso2avc1mp41',
+        make: 'Adobe Systems Incorporated',
+        model: `Premiere Pro ${ver.year}`,
+        publisher: 'Adobe Systems Incorporated',
+        language: 'eng',
+        genre: 'Video Production',
+        category: 'Professional Video Editing',
+        keywords: 'video, editing, premiere, production, professional',
+        grouping: 'Adobe Creative Cloud',
+      };
+    }
+    case 'adobe-after-effects': {
+      const ver = randomAfterEffectsVersion();
+      const renderQueue = Math.floor(Math.random() * 999) + 1;
+      const compName = `Comp ${Math.floor(Math.random() * 50) + 1}`;
+      const dateNow = new Date();
+      const dateString = `${dateNow.getFullYear()}-${String(dateNow.getMonth() + 1).padStart(2, '0')}-${String(dateNow.getDate()).padStart(2, '0')}`;
+
+      // Random project types for AE
+      const aeProjects = ['Motion Graphics Project', 'VFX Composition', 'Title Sequence', 'Logo Animation', 'Visual Effects'];
+      const randomAEProject = aeProjects[Math.floor(Math.random() * aeProjects.length)];
+
+      return {
+        encoder: 'QuickTime / CoreMedia Video',
+        writing_application: `Adobe After Effects ${ver.year} ${ver.version} (Windows)`,
+        writing_library: `Adobe After Effects Renderer ${ver.version}`,
+        software_version: `${ver.version}.${ver.build}`,
+        comment: `Rendered with Adobe After Effects ${ver.version} (Build ${ver.build}) - ${compName} - Render Queue Item ${renderQueue}`,
+        description: 'Composition rendered from Adobe After Effects',
+        synopsis: `${randomAEProject} - ${compName}`,
+        creation_time: now,
+        date: dateString,
+        handler_name: 'Core Media Video',
+        timecode: '00:00:00:00',
+        major_brand: 'qt  ',
+        compatible_brands: 'qt  ',
+        make: 'Adobe Systems Incorporated',
+        model: `After Effects ${ver.year}`,
+        publisher: 'Adobe Systems Incorporated',
+        composer: 'Adobe After Effects',
+        language: 'eng',
+        genre: 'Motion Graphics',
+        category: 'Visual Effects & Motion Graphics',
+        keywords: 'motion graphics, vfx, animation, after effects, compositing',
+        grouping: 'Adobe Creative Cloud',
+      };
+    }
+    case 'adobe-media-encoder': {
+      const ver = randomMediaEncoderVersion();
+      const presetNames = ['YouTube 1080p HD', 'H.264 High Quality', 'Match Source - High bitrate', 'Vimeo 1080p HD', 'Facebook 1080p', 'Custom Export'];
+      const randomPreset = presetNames[Math.floor(Math.random() * presetNames.length)];
+      const queueItem = Math.floor(Math.random() * 50) + 1;
+      const dateNow = new Date();
+      const dateString = `${dateNow.getFullYear()}-${String(dateNow.getMonth() + 1).padStart(2, '0')}-${String(dateNow.getDate()).padStart(2, '0')}`;
+
+      // Random batch names
+      const batchNames = ['Batch 1', 'Export Queue', 'Final Deliverables', 'Social Media Batch', 'Master Files'];
+      const randomBatch = batchNames[Math.floor(Math.random() * batchNames.length)];
+
+      return {
+        encoder: 'AVC Coding',
+        writing_application: `Adobe Media Encoder ${ver.year} ${ver.version} (Windows)`,
+        writing_library: `Adobe Media Encoder Core ${ver.version}`,
+        software_version: `${ver.version}.${ver.build}`,
+        comment: `Encoded by Adobe Media Encoder ${ver.version} Build ${ver.build} - Preset: ${randomPreset} - Queue Item ${queueItem}`,
+        description: `Batch encoded with preset: ${randomPreset}`,
+        synopsis: `Batch encoding - ${randomBatch} - ${randomPreset}`,
+        creation_time: now,
+        date: dateString,
+        handler_name: 'VideoHandler',
+        timecode: '00:00:00:00',
+        major_brand: 'isom',
+        compatible_brands: 'isomiso2avc1mp41',
+        make: 'Adobe Systems Incorporated',
+        model: `Media Encoder ${ver.year}`,
+        publisher: 'Adobe Systems Incorporated',
+        performer: 'Adobe Media Encoder',
+        language: 'eng',
+        genre: 'Video Encoding',
+        category: 'Professional Video Encoding',
+        keywords: 'encoding, transcoding, media encoder, batch processing, adobe',
+        grouping: 'Adobe Creative Cloud',
+        album: randomBatch,
+      };
+    }
+    case 'camtasia': {
+      const ver = randomCamtasiaVersion();
+
+      // Expanded project types for maximum diversity
+      const projectNames = [
+        'Screencast', 'Tutorial', 'Recording', 'Project', 'Presentation',
+        'Demo', 'Walkthrough', 'Training', 'Webinar', 'Course',
+        'How-to', 'Review', 'Gameplay', 'Software Demo'
+      ];
+      const randomProject = projectNames[Math.floor(Math.random() * projectNames.length)];
+
+      // Export format variations (Camtasia supports multiple formats)
+      const exportFormats = ['MP4', 'MP4 - Smart Player', 'MP4 - 1080p', 'MP4 - 720p', 'MP4 - Custom'];
+      const randomFormat = exportFormats[Math.floor(Math.random() * exportFormats.length)];
+
+      // Quality presets
+      const qualityPresets = ['High', 'Medium', 'Custom', 'Web Optimized', 'Production Max'];
+      const randomQuality = qualityPresets[Math.floor(Math.random() * qualityPresets.length)];
+
+      // Recording sources
+      const recordingSources = ['Screen + Webcam', 'Screen Only', 'Webcam Only', 'Screen + Audio'];
+      const randomSource = recordingSources[Math.floor(Math.random() * recordingSources.length)];
+
+      const dateNow = new Date();
+      const dateString = `${dateNow.getFullYear()}-${String(dateNow.getMonth() + 1).padStart(2, '0')}-${String(dateNow.getDate()).padStart(2, '0')}`;
+
+      // Recording duration (random for realism)
+      const recordingMinutes = Math.floor(Math.random() * 45) + 5; // 5-50 minutes
+
+      // Random course/series names
+      const seriesNames = ['Tutorial Series', 'Course Module', 'Training Program', 'Video Series', 'Learning Path'];
+      const randomSeries = seriesNames[Math.floor(Math.random() * seriesNames.length)];
+
+      // Random topic keywords based on project type
+      const topicKeywords = {
+        'Tutorial': 'tutorial, how-to, learning, education, step-by-step',
+        'Training': 'training, corporate, learning, professional development, skills',
+        'Webinar': 'webinar, presentation, online seminar, live session, educational',
+        'Course': 'course, e-learning, education, online learning, lesson',
+        'Software Demo': 'software, demo, application, product demo, walkthrough',
+        'Gameplay': 'gameplay, gaming, let\'s play, game recording, video game',
+        'Review': 'review, product review, analysis, evaluation, comparison'
+      };
+      const keywords = topicKeywords[randomProject] || 'screencast, recording, video, camtasia, screen capture';
+
+      return {
+        encoder: 'Camtasia Video Encoder',
+        writing_application: `TechSmith Camtasia ${ver.version} (Build ${ver.build})`,
+        writing_library: `Camtasia ${ver.version}`,
+        software_version: `${ver.version}.${ver.build}`,
+        comment: `Produced with Camtasia Studio ${ver.version} for Windows - ${randomProject} on ${randomPC} - Format: ${randomFormat} - Quality: ${randomQuality}`,
+        description: `${randomProject}: ${randomSource} - ${recordingMinutes} min recording`,
+        synopsis: `${randomProject} - Created with ${randomSource} - ${randomFormat} export`,
+        creation_time: now,
+        date: dateString,
+        handler_name: 'VideoHandler',
+        timecode: '00:00:00;00',
+        major_brand: 'mp42',
+        compatible_brands: 'mp42isom',
+        make: 'TechSmith Corporation',
+        model: `Camtasia ${ver.year}`,
+        publisher: 'TechSmith Corporation',
+        composer: `Camtasia Studio ${ver.year}`,
+        performer: randomPC,
+        language: 'eng',
+        genre: 'Screencast',
+        category: 'Screen Recording & Tutorial',
+        keywords: keywords,
+        grouping: 'TechSmith Camtasia',
+        album: randomSeries,
+        album_artist: 'TechSmith Corporation',
+      };
+    }
+    default:
+      return {};
   }
 }
 
@@ -138,7 +454,12 @@ export function createExporter() {
       vf.push(`[${segments.join('][')}]concat=n=${segments.length}:v=1:a=0[base]`);
     }
 
-    // Step 5: Apply logo overlay
+    // Calculate main video timing (exclude intro and outro)
+    const introTime = tracks.intro?.duration || 0;
+    const mainStartTime = introTime;
+    const mainEndTime = introTime + duration;
+
+    // Step 5: Apply logo overlay (only during main video)
     let currentLabel = 'base';
     if (logoIdx >= 0) {
       const pos = posExpr(tracks.logo.pos || "top-right");
@@ -146,7 +467,7 @@ export function createExporter() {
       const lsc = tracks.logo.scale ?? 220;
       vf.push(
         `[${logoIdx}:v]scale=${lsc}:-1,format=rgba,colorchannelmixer=aa=${op}[lg]`,
-        `[base][lg]overlay=${pos.x}:${pos.y}:enable='between(t,${tracks.logo.start ?? 0},${tracks.logo.end ?? duration})'[v1]`
+        `[base][lg]overlay=${pos.x}:${pos.y}:enable='between(t,${tracks.logo.start ?? mainStartTime},${tracks.logo.end ?? mainEndTime})'[v1]`
       );
       currentLabel = 'v1';
     } else {
@@ -154,15 +475,16 @@ export function createExporter() {
       currentLabel = 'v1';
     }
 
-    // Step 6: Apply frame border
+    // Step 6: Apply frame border (only during main video)
     if (tracks.frame?.enable) {
       const t = tracks.frame.thickness ?? 12;
       const c = tracks.frame.color ?? "white@0.85";
+      const timeCondition = `:enable='between(t,${mainStartTime},${mainEndTime})'`;
       vf.push(
-        `[${currentLabel}]drawbox=x=0:y=0:w=iw:h=${t}:t=fill:color=${c}[v2]`,
-        `[v2]drawbox=x=0:y=ih-${t}:w=iw:h=${t}:t=fill:color=${c}[v3]`,
-        `[v3]drawbox=x=0:y=0:w=${t}:h=ih:t=fill:color=${c}[v4]`,
-        `[v4]drawbox=x=iw-${t}:y=0:w=${t}:h=ih:t=fill:color=${c}[v5]`
+        `[${currentLabel}]drawbox=x=0:y=0:w=iw:h=${t}:t=fill:color=${c}${timeCondition}[v2]`,
+        `[v2]drawbox=x=0:y=ih-${t}:w=iw:h=${t}:t=fill:color=${c}${timeCondition}[v3]`,
+        `[v3]drawbox=x=0:y=0:w=${t}:h=ih:t=fill:color=${c}${timeCondition}[v4]`,
+        `[v4]drawbox=x=iw-${t}:y=0:w=${t}:h=ih:t=fill:color=${c}${timeCondition}[v5]`
       );
       currentLabel = 'v5';
     } else {
@@ -271,8 +593,72 @@ export function createExporter() {
       if (bgmIdx >= 0) pipeline.input(tracks.audio.bgm.src);
       if (voiceIdx >= 0) pipeline.input(tracks.audio.voice.src);
 
+      // Prepare metadata
+      const outputOpts = ["-pix_fmt", "yuv420p"];
+
+      if (project.metadata) {
+        const meta = project.metadata;
+        let metadataValues: MetadataValues = {};
+
+        // Apply preset if specified
+        if (meta.preset && meta.preset !== 'none') {
+          metadataValues = getMetadataPreset(meta.preset);
+        }
+
+        // Override with custom values
+        if (meta.encoder) metadataValues.encoder = meta.encoder;
+        if (meta.title) metadataValues.title = meta.title;
+        if (meta.author) metadataValues.author = meta.author;
+        if (meta.comment) metadataValues.comment = meta.comment;
+        if (meta.copyright) metadataValues.copyright = meta.copyright;
+
+        // Add metadata to output options
+        // Core metadata
+        if (metadataValues.encoder) outputOpts.push("-metadata", `encoder=${metadataValues.encoder}`);
+        if (metadataValues.title) outputOpts.push("-metadata", `title=${metadataValues.title}`);
+        if (metadataValues.author) outputOpts.push("-metadata", `artist=${metadataValues.author}`);
+        if (metadataValues.comment) outputOpts.push("-metadata", `comment=${metadataValues.comment}`);
+        if (metadataValues.copyright) outputOpts.push("-metadata", `copyright=${metadataValues.copyright}`);
+        if (metadataValues.description) outputOpts.push("-metadata", `description=${metadataValues.description}`);
+
+        // Timing metadata
+        if (metadataValues.creation_time) outputOpts.push("-metadata", `creation_time=${metadataValues.creation_time}`);
+        if (metadataValues.date) outputOpts.push("-metadata", `date=${metadataValues.date}`);
+
+        // Technical metadata
+        if (metadataValues.handler_name) outputOpts.push("-metadata:s:v:0", `handler_name=${metadataValues.handler_name}`);
+        if (metadataValues.timecode) outputOpts.push("-metadata", `timecode=${metadataValues.timecode}`);
+        if (metadataValues.major_brand) outputOpts.push("-brand", metadataValues.major_brand);
+        if (metadataValues.language) outputOpts.push("-metadata:s:v:0", `language=${metadataValues.language}`);
+
+        // Producer metadata
+        if (metadataValues.make) outputOpts.push("-metadata", `make=${metadataValues.make}`);
+        if (metadataValues.model) outputOpts.push("-metadata", `model=${metadataValues.model}`);
+        if (metadataValues.writing_application) outputOpts.push("-metadata", `com.apple.quicktime.software=${metadataValues.writing_application}`);
+        if (metadataValues.writing_library) outputOpts.push("-metadata", `com.apple.quicktime.make=${metadataValues.writing_library}`);
+        if (metadataValues.genre) outputOpts.push("-metadata", `genre=${metadataValues.genre}`);
+
+        // Extended professional metadata
+        if (metadataValues.keywords) outputOpts.push("-metadata", `keywords=${metadataValues.keywords}`);
+        if (metadataValues.category) outputOpts.push("-metadata", `category=${metadataValues.category}`);
+        if (metadataValues.album) outputOpts.push("-metadata", `album=${metadataValues.album}`);
+        if (metadataValues.album_artist) outputOpts.push("-metadata", `album_artist=${metadataValues.album_artist}`);
+        if (metadataValues.composer) outputOpts.push("-metadata", `composer=${metadataValues.composer}`);
+        if (metadataValues.performer) outputOpts.push("-metadata", `performer=${metadataValues.performer}`);
+        if (metadataValues.publisher) outputOpts.push("-metadata", `publisher=${metadataValues.publisher}`);
+        if (metadataValues.synopsis) outputOpts.push("-metadata", `synopsis=${metadataValues.synopsis}`);
+        if (metadataValues.grouping) outputOpts.push("-metadata", `grouping=${metadataValues.grouping}`);
+        if (metadataValues.track) outputOpts.push("-metadata", `track=${metadataValues.track}`);
+        if (metadataValues.disc) outputOpts.push("-metadata", `disc=${metadataValues.disc}`);
+
+        // QuickTime-specific
+        if (metadataValues.location) outputOpts.push("-metadata", `com.apple.quicktime.location=${metadataValues.location}`);
+        if (metadataValues.location_iso6709) outputOpts.push("-metadata", `com.apple.quicktime.location.ISO6709=${metadataValues.location_iso6709}`);
+        if (metadataValues.software_version) outputOpts.push("-metadata", `software_version=${metadataValues.software_version}`);
+      }
+
       pipeline
-        .outputOptions(["-pix_fmt yuv420p"])
+        .outputOptions(outputOpts)
         .videoCodec("libx264")
         .fps(fps)
         .complexFilter(filter)
